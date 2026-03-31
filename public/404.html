@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <script>
+      // Redirect GitHub Pages 404s back to the app with the path preserved
+      var path = window.location.pathname.replace('/chaptered', '') || '/';
+      window.location.replace('/chaptered/?redirect=' + encodeURIComponent(path));
+    </script>
+  </head>
+</html>

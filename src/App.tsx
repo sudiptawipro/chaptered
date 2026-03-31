@@ -18,7 +18,7 @@ import MockExam from './pages/MockExam';
 
 export default function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter basename="/chaptered">
       <Layout>
         <Routes>
           <Route path="/" element={<Dashboard />} />
