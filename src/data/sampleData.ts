@@ -6,7 +6,7 @@ const tomorrow = addDays(today, 1);
 
 export const mockState: AppState = {
   profile: {
-    name: 'Aaryana',
+    name: '',
     targetCurriculum: 'IGCSE',
     targetGrade: 'Year 9',
   },

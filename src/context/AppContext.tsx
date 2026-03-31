@@ -249,7 +249,7 @@ export const initialTimerState: TimerState = {
 
 export const initialState: AppState = {
   profile: {
-    name: 'Aaryana',
+    name: '',
     targetCurriculum: 'IGCSE',
     targetGrade: 'Year 8',
   },
