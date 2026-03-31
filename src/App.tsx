@@ -1,5 +1,7 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { useAppContext } from './context/AppContext';
 import Layout from './components/Layout';
+import Onboarding from './components/Onboarding';
 import Dashboard from './pages/Dashboard';
 import Subjects from './pages/Subjects';
 import ChapterDetail from './pages/ChapterDetail';
@@ -16,9 +18,13 @@ import Analytics from './pages/Analytics';
 import RevisionPlanner from './pages/RevisionPlanner';
 import MockExam from './pages/MockExam';
 
-export default function App() {
+function AppInner() {
+  const { state } = useAppContext();
+  const needsOnboarding = !state.profile?.name?.trim();
+
   return (
     <BrowserRouter basename="/chaptered">
+      {needsOnboarding && <Onboarding />}
       <Layout>
         <Routes>
           <Route path="/" element={<Dashboard />} />
@@ -40,4 +46,8 @@ export default function App() {
       </Layout>
     </BrowserRouter>
   );
+}
+
+export default function App() {
+  return <AppInner />;
 }
