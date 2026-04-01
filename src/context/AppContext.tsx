@@ -46,6 +46,14 @@ export interface Doubt {
   resolvedAt?: Date;
 }
 
+export interface SubChapter {
+  id: string;
+  chapterId: string;
+  name: string;
+  status: 'not-started' | 'in-progress' | 'done';
+  notes: Note[];
+}
+
 export interface Chapter {
   id: string;
   subjectId: string;
@@ -55,6 +63,7 @@ export interface Chapter {
   notes: Note[];
   flashcards: Flashcard[];
   formulas: Formula[];
+  subChapters?: SubChapter[];
 }
 
 export interface Subject {
@@ -84,6 +93,7 @@ export interface Exam {
   date: Date;
   color?: string;
   linkedChapterIds: string[];
+  linkedSubChapterIds?: string[];
 }
 
 export interface CalendarEvent {
@@ -208,6 +218,11 @@ export type Action =
   | { type: 'DELETE_DOUBT'; payload: string }
   | { type: 'ADD_NOTE'; payload: { note: Note, subjectId: string, chapterId: string } }
   | { type: 'DELETE_NOTE'; payload: { subjectId: string, chapterId: string, noteId: string } }
+  | { type: 'ADD_SUBCHAPTER'; payload: { subjectId: string, chapterId: string, subChapter: SubChapter } }
+  | { type: 'DELETE_SUBCHAPTER'; payload: { subjectId: string, chapterId: string, subChapterId: string } }
+  | { type: 'UPDATE_SUBCHAPTER_STATUS'; payload: { subjectId: string, chapterId: string, subChapterId: string, status: SubChapter['status'] } }
+  | { type: 'ADD_SUBCHAPTER_NOTE'; payload: { subjectId: string, chapterId: string, subChapterId: string, note: Note } }
+  | { type: 'DELETE_SUBCHAPTER_NOTE'; payload: { subjectId: string, chapterId: string, subChapterId: string, noteId: string } }
   | { type: 'ADD_FLASHCARD'; payload: { flashcard: Flashcard, subjectId: string, chapterId: string } }
   | { type: 'DELETE_FLASHCARD'; payload: { subjectId: string, chapterId: string, flashcardId: string } }
   | { type: 'ADD_FLASHCARDS'; payload: { flashcards: Flashcard[], subjectId: string, chapterId: string } }
@@ -307,7 +322,7 @@ function appReducer(state: AppState, action: Action): AppState {
         ...state,
         subjects: state.subjects.map(sub =>
           sub.id === action.payload.subjectId
-            ? { ...sub, chapters: [...sub.chapters, action.payload] }
+            ? { ...sub, chapters: [...sub.chapters, { ...action.payload, subChapters: action.payload.subChapters || [] }] }
             : sub
         )
       };
@@ -423,6 +438,110 @@ function appReducer(state: AppState, action: Action): AppState {
               chapters: sub.chapters.map(chap =>
                 chap.id === action.payload.chapterId
                   ? { ...chap, notes: chap.notes.filter(n => n.id !== action.payload.noteId) }
+                  : chap
+              )
+            }
+            : sub
+        )
+      };
+
+    case 'ADD_SUBCHAPTER':
+      return {
+        ...state,
+        subjects: state.subjects.map(sub =>
+          sub.id === action.payload.subjectId
+            ? {
+              ...sub,
+              chapters: sub.chapters.map(chap =>
+                chap.id === action.payload.chapterId
+                  ? { ...chap, subChapters: [...(chap.subChapters || []), action.payload.subChapter] }
+                  : chap
+              )
+            }
+            : sub
+        )
+      };
+
+    case 'DELETE_SUBCHAPTER':
+      return {
+        ...state,
+        subjects: state.subjects.map(sub =>
+          sub.id === action.payload.subjectId
+            ? {
+              ...sub,
+              chapters: sub.chapters.map(chap =>
+                chap.id === action.payload.chapterId
+                  ? { ...chap, subChapters: (chap.subChapters || []).filter(sc => sc.id !== action.payload.subChapterId) }
+                  : chap
+              )
+            }
+            : sub
+        )
+      };
+
+    case 'UPDATE_SUBCHAPTER_STATUS':
+      return {
+        ...state,
+        subjects: state.subjects.map(sub =>
+          sub.id === action.payload.subjectId
+            ? {
+              ...sub,
+              chapters: sub.chapters.map(chap =>
+                chap.id === action.payload.chapterId
+                  ? {
+                    ...chap,
+                    subChapters: (chap.subChapters || []).map(sc =>
+                      sc.id === action.payload.subChapterId ? { ...sc, status: action.payload.status } : sc
+                    )
+                  }
+                  : chap
+              )
+            }
+            : sub
+        )
+      };
+
+    case 'ADD_SUBCHAPTER_NOTE':
+      return {
+        ...state,
+        subjects: state.subjects.map(sub =>
+          sub.id === action.payload.subjectId
+            ? {
+              ...sub,
+              chapters: sub.chapters.map(chap =>
+                chap.id === action.payload.chapterId
+                  ? {
+                    ...chap,
+                    subChapters: (chap.subChapters || []).map(sc =>
+                      sc.id === action.payload.subChapterId
+                        ? { ...sc, notes: [...(sc.notes || []), action.payload.note] }
+                        : sc
+                    )
+                  }
+                  : chap
+              )
+            }
+            : sub
+        )
+      };
+
+    case 'DELETE_SUBCHAPTER_NOTE':
+      return {
+        ...state,
+        subjects: state.subjects.map(sub =>
+          sub.id === action.payload.subjectId
+            ? {
+              ...sub,
+              chapters: sub.chapters.map(chap =>
+                chap.id === action.payload.chapterId
+                  ? {
+                    ...chap,
+                    subChapters: (chap.subChapters || []).map(sc =>
+                      sc.id === action.payload.subChapterId
+                        ? { ...sc, notes: (sc.notes || []).filter(n => n.id !== action.payload.noteId) }
+                        : sc
+                    )
+                  }
                   : chap
               )
             }

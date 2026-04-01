@@ -1,7 +1,8 @@
 import { useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
-import { ArrowLeft, Check, Upload, Trash2, Paperclip, BookOpen, Link2, Tag, X, Folder, FileText, Image as ImageIcon } from 'lucide-react';
+import type { SubChapter } from '../context/AppContext';
+import { ArrowLeft, Check, Upload, Trash2, Paperclip, BookOpen, Link2, Tag, X, Folder, FileText, Image as ImageIcon, Plus, ChevronRight, Layers } from 'lucide-react';
 import ConfirmModal from '../components/ConfirmModal';
 import SubjectBadge from '../components/SubjectBadge';
 
@@ -40,6 +41,38 @@ export default function ChapterDetail() {
   const [typeFilter, setTypeFilter] = useState<'all' | 'text' | 'image' | 'link' | 'pdf'>('all');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Sub-chapter state
+  const [newSubChapterName, setNewSubChapterName] = useState('');
+  const [addingSubChapter, setAddingSubChapter] = useState(false);
+
+  const handleAddSubChapter = () => {
+    if (!newSubChapterName.trim() || !subject || !chapter) return;
+    const sc: SubChapter = {
+      id: `sc-${Date.now()}`,
+      chapterId: chapter.id,
+      name: newSubChapterName.trim(),
+      status: 'not-started',
+      notes: [],
+    };
+    dispatch({ type: 'ADD_SUBCHAPTER', payload: { subjectId: subject.id, chapterId: chapter.id, subChapter: sc } });
+    setNewSubChapterName('');
+    setAddingSubChapter(false);
+  };
+
+  const handleDeleteSubChapter = (scId: string) => {
+    if (!subject || !chapter) return;
+    showConfirm('Delete Sub-chapter', 'Delete this sub-chapter and all its notes?', () => {
+      dispatch({ type: 'DELETE_SUBCHAPTER', payload: { subjectId: subject.id, chapterId: chapter.id, subChapterId: scId } });
+    });
+  };
+
+  const cycleSubChapterStatus = (sc: SubChapter) => {
+    if (!subject || !chapter) return;
+    const order = ['not-started', 'in-progress', 'done'] as const;
+    const next = order[(order.indexOf(sc.status) + 1) % 3];
+    dispatch({ type: 'UPDATE_SUBCHAPTER_STATUS', payload: { subjectId: subject.id, chapterId: chapter.id, subChapterId: sc.id, status: next } });
+  };
 
   // Confirm modal
   const [confirmState, setConfirmState] = useState<{ open: boolean; title: string; description: string; onConfirm: () => void }>({
@@ -208,6 +241,95 @@ export default function ChapterDetail() {
             {chapter.status === 'done' ? 'Completed' : chapter.status === 'in-progress' ? '⏳ In Progress' : '○ Not Started'}
           </button>
         </div>
+      </div>
+
+      {/* Sub-chapters Section */}
+      <div className="bg-bg-card border border-border rounded-xl overflow-hidden">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+          <div className="flex items-center gap-2">
+            <Layers size={16} className="text-accent" />
+            <h2 className="font-black text-white text-sm">Sub-chapters</h2>
+            <span className="text-xs font-bold text-text-muted bg-border px-2 py-0.5 rounded-full">
+              {(chapter.subChapters || []).length}
+            </span>
+          </div>
+          <button
+            onClick={() => setAddingSubChapter(true)}
+            className="flex items-center gap-1.5 text-xs font-bold text-accent hover:text-white transition-colors bg-accent/10 hover:bg-accent/20 px-3 py-1.5 rounded-lg"
+          >
+            <Plus size={13} /> Add Sub-chapter
+          </button>
+        </div>
+
+        {/* Add sub-chapter input */}
+        {addingSubChapter && (
+          <div className="flex items-center gap-2 px-5 py-3 border-b border-border bg-accent/5">
+            <input
+              autoFocus
+              type="text"
+              value={newSubChapterName}
+              onChange={e => setNewSubChapterName(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') handleAddSubChapter(); if (e.key === 'Escape') setAddingSubChapter(false); }}
+              placeholder="Sub-chapter name, e.g. Photosynthesis"
+              className="flex-1 bg-transparent text-white text-sm focus:outline-none placeholder-text-muted"
+            />
+            <button onClick={handleAddSubChapter} className="text-xs font-black text-white bg-accent px-3 py-1.5 rounded-lg hover:bg-accent-hover transition-colors">Save</button>
+            <button onClick={() => { setAddingSubChapter(false); setNewSubChapterName(''); }} className="text-xs font-bold text-text-muted hover:text-white transition-colors px-2 py-1.5">Cancel</button>
+          </div>
+        )}
+
+        {/* Sub-chapter list */}
+        {(chapter.subChapters || []).length === 0 && !addingSubChapter ? (
+          <div className="py-8 text-center text-text-muted text-sm">
+            No sub-chapters yet — click "Add Sub-chapter" to break this chapter into topics
+          </div>
+        ) : (
+          <div className="divide-y divide-border">
+            {(chapter.subChapters || []).map((sc, idx) => (
+              <div key={sc.id} className="flex items-center gap-3 px-5 py-3 hover:bg-bg-raised transition-colors group">
+                <span className="text-xs font-bold text-text-muted w-5 text-right flex-shrink-0">{idx + 1}</span>
+                <button
+                  onClick={() => cycleSubChapterStatus(sc)}
+                  title="Click to cycle status"
+                  className={`flex-shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all hover:scale-110 ${
+                    sc.status === 'done' ? 'bg-green/20 border-green' :
+                    sc.status === 'in-progress' ? 'bg-gold/20 border-gold' :
+                    'bg-transparent border-border hover:border-text-muted'
+                  }`}
+                >
+                  {sc.status === 'done' && <Check size={12} className="text-green" />}
+                  {sc.status === 'in-progress' && <span className="w-2 h-2 rounded-full bg-gold" />}
+                </button>
+                <button
+                  onClick={() => navigate(`/subjects/${subject.id}/chapter/${chapter.id}/subchapter/${sc.id}`)}
+                  className="flex-1 text-left text-sm font-bold text-white hover:text-accent transition-colors truncate"
+                >
+                  {sc.name}
+                </button>
+                <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full flex-shrink-0 ${
+                  sc.status === 'done' ? 'bg-green/10 text-green' :
+                  sc.status === 'in-progress' ? 'bg-gold/10 text-gold' :
+                  'bg-border text-text-muted'
+                }`}>
+                  {sc.status === 'not-started' ? 'Not Started' : sc.status === 'in-progress' ? 'In Progress' : 'Done'}
+                </span>
+                <span className="text-xs text-text-muted flex-shrink-0">{(sc.notes || []).length} notes</span>
+                <button
+                  onClick={() => navigate(`/subjects/${subject.id}/chapter/${chapter.id}/subchapter/${sc.id}`)}
+                  className="text-text-muted hover:text-white transition-colors flex-shrink-0"
+                >
+                  <ChevronRight size={15} />
+                </button>
+                <button
+                  onClick={() => handleDeleteSubChapter(sc.id)}
+                  className="text-coral opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 p-1 hover:bg-coral/10 rounded"
+                >
+                  <Trash2 size={13} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Notes Section */}

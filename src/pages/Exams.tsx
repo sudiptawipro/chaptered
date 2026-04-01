@@ -18,6 +18,7 @@ export default function Exams() {
   const [exType, setExType] = useState<string>(state.examTypes?.[0] || 'Unit Test');
   const [exColor] = useState('#FF6B9D');
   const [linkedChapters, setLinkedChapters] = useState<string[]>([]);
+  const [linkedSubChapters, setLinkedSubChapters] = useState<string[]>([]);
 
   // Mark logging state
   const [isMarkOpen, setIsMarkOpen] = useState(false);
@@ -44,17 +45,30 @@ export default function Exams() {
 
   const selectedSubject = state.subjects.find(s => s.id === exSub);
 
-  // Reset chapters when subject changes
+  // Reset chapters + sub-chapters when subject changes
   useEffect(() => {
     setLinkedChapters([]);
+    setLinkedSubChapters([]);
   }, [exSub]);
 
   const toggleChapter = (id: string) => {
     if (linkedChapters.includes(id)) {
       setLinkedChapters(linkedChapters.filter(c => c !== id));
+      // Also deselect all sub-chapters of this chapter
+      const chap = selectedSubject?.chapters.find(c => c.id === id);
+      if (chap?.subChapters) {
+        const scIds = chap.subChapters.map(sc => sc.id);
+        setLinkedSubChapters(prev => prev.filter(id => !scIds.includes(id)));
+      }
     } else {
       setLinkedChapters([...linkedChapters, id]);
     }
+  };
+
+  const toggleSubChapter = (id: string) => {
+    setLinkedSubChapters(prev =>
+      prev.includes(id) ? prev.filter(s => s !== id) : [...prev, id]
+    );
   };
 
   const selectAllChapters = () => {
@@ -75,10 +89,12 @@ export default function Exams() {
         type: exType,
         color: exColor,
         linkedChapterIds: linkedChapters,
+        linkedSubChapterIds: linkedSubChapters,
       }
     });
     setExName('');
     setLinkedChapters([]);
+    setLinkedSubChapters([]);
     setIsAddOpen(false);
   };
 
@@ -437,18 +453,42 @@ export default function Exams() {
                 <label className="block text-xs font-black text-text-muted uppercase tracking-widest">Syllabus Coverage</label>
                 <button onClick={selectAllChapters} className="text-[10px] font-black uppercase tracking-widest text-accent hover:text-accent-hover transition-colors bg-accent/10 px-2 py-1 rounded">Select All</button>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-48 overflow-y-auto pr-2 no-scrollbar">
+              <div className="flex flex-col gap-2 max-h-64 overflow-y-auto pr-2 no-scrollbar">
                 {selectedSubject.chapters.map(chap => (
-                  <button
-                    key={chap.id}
-                    onClick={() => toggleChapter(chap.id)}
-                    className={`flex items-center gap-3 p-3 rounded-xl border-2 text-left transition-all ${linkedChapters.includes(chap.id) ? 'border-accent bg-accent/10' : 'border-border bg-bg hover:border-text-muted/30'}`}
-                  >
-                    <div className={`w-5 h-5 rounded-md flex justify-center items-center flex-shrink-0 transition-colors ${linkedChapters.includes(chap.id) ? 'bg-accent text-white' : 'border-2 border-text-muted/50'}`}>
-                      {linkedChapters.includes(chap.id) && <CheckSquare size={14} />}
-                    </div>
-                    <span className={`text-sm font-bold truncate ${linkedChapters.includes(chap.id) ? 'text-white' : 'text-text-muted'}`}>{chap.name}</span>
-                  </button>
+                  <div key={chap.id}>
+                    {/* Chapter row */}
+                    <button
+                      onClick={() => toggleChapter(chap.id)}
+                      className={`flex items-center gap-3 p-3 rounded-xl border-2 text-left transition-all w-full ${linkedChapters.includes(chap.id) ? 'border-accent bg-accent/10' : 'border-border bg-bg hover:border-text-muted/30'}`}
+                    >
+                      <div className={`w-5 h-5 rounded-md flex justify-center items-center flex-shrink-0 transition-colors ${linkedChapters.includes(chap.id) ? 'bg-accent text-white' : 'border-2 border-text-muted/50'}`}>
+                        {linkedChapters.includes(chap.id) && <CheckSquare size={14} />}
+                      </div>
+                      <span className={`text-sm font-bold truncate ${linkedChapters.includes(chap.id) ? 'text-white' : 'text-text-muted'}`}>{chap.name}</span>
+                      {(chap.subChapters || []).length > 0 && (
+                        <span className="ml-auto text-[10px] font-bold text-text-muted flex-shrink-0">
+                          {(chap.subChapters || []).length} sub
+                        </span>
+                      )}
+                    </button>
+                    {/* Sub-chapter rows — shown when chapter is selected */}
+                    {linkedChapters.includes(chap.id) && (chap.subChapters || []).length > 0 && (
+                      <div className="ml-6 mt-1 flex flex-col gap-1">
+                        {(chap.subChapters || []).map(sc => (
+                          <button
+                            key={sc.id}
+                            onClick={() => toggleSubChapter(sc.id)}
+                            className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-left transition-all w-full ${linkedSubChapters.includes(sc.id) ? 'border-accent/60 bg-accent/10 text-white' : 'border-border/50 text-text-muted hover:text-white hover:border-text-muted/30'}`}
+                          >
+                            <div className={`w-4 h-4 rounded flex items-center justify-center flex-shrink-0 ${linkedSubChapters.includes(sc.id) ? 'bg-accent' : 'border border-text-muted/40'}`}>
+                              {linkedSubChapters.includes(sc.id) && <CheckSquare size={10} className="text-white" />}
+                            </div>
+                            <span className="text-xs font-bold truncate">{sc.name}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 ))}
               </div>
             </div>
