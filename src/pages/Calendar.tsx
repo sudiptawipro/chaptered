@@ -22,6 +22,8 @@ export default function Calendar() {
   const [evType, setEvType] = useState<string>('School Class');
   const [evSub, setEvSub] = useState('');
   const [evDate, setEvDate] = useState(format(selectedDate, 'yyyy-MM-dd'));
+  const [evStartTime, setEvStartTime] = useState('');
+  const [evEndTime, setEvEndTime] = useState('');
   const [evColor, setEvColor] = useState('#8A8070');
 
   // Helper to convert 24h to 12h AM/PM
@@ -63,10 +65,14 @@ export default function Calendar() {
         type: evType,
         date: new Date(evDate),
         subjectId: evType !== 'personal-note' ? (evSub || undefined) : undefined,
-        color: evType === 'personal-note' ? evColor : undefined
+        color: evType === 'personal-note' ? evColor : undefined,
+        startTime: evStartTime || undefined,
+        endTime: evEndTime || undefined,
       }
     });
-    setEvName(''); 
+    setEvName('');
+    setEvStartTime('');
+    setEvEndTime('');
     setIsAddEventOpen(false);
   };
 
@@ -245,9 +251,19 @@ export default function Calendar() {
               </select>
             </div>
           </div>
-          <div>
-            <label className="block text-xs font-black text-text-muted mb-2 uppercase tracking-widest">Date</label>
-            <input type="date" value={evDate} onChange={e => setEvDate(e.target.value)} className="w-full bg-bg border-2 border-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-accent font-mono font-bold transition-colors" />
+          <div className="grid grid-cols-3 gap-3">
+            <div className="col-span-1">
+              <label className="block text-xs font-black text-text-muted mb-2 uppercase tracking-widest">Date</label>
+              <input type="date" value={evDate} onChange={e => setEvDate(e.target.value)} className="w-full bg-bg border-2 border-border rounded-xl px-3 py-3 text-white focus:outline-none focus:border-accent font-mono font-bold transition-colors" />
+            </div>
+            <div>
+              <label className="block text-xs font-black text-text-muted mb-2 uppercase tracking-widest">Start Time</label>
+              <input type="time" value={evStartTime} onChange={e => setEvStartTime(e.target.value)} className="w-full bg-bg border-2 border-border rounded-xl px-3 py-3 text-white focus:outline-none focus:border-accent font-mono font-bold transition-colors" />
+            </div>
+            <div>
+              <label className="block text-xs font-black text-text-muted mb-2 uppercase tracking-widest">End Time</label>
+              <input type="time" value={evEndTime} onChange={e => setEvEndTime(e.target.value)} className="w-full bg-bg border-2 border-border rounded-xl px-3 py-3 text-white focus:outline-none focus:border-accent font-mono font-bold transition-colors" />
+            </div>
           </div>
           
           {evType === 'personal-note' && (
