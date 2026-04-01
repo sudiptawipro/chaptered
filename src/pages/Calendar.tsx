@@ -251,18 +251,28 @@ export default function Calendar() {
               </select>
             </div>
           </div>
-          <div className="grid grid-cols-3 gap-3">
-            <div className="col-span-1">
-              <label className="block text-xs font-black text-text-muted mb-2 uppercase tracking-widest">Date</label>
-              <input type="date" value={evDate} onChange={e => setEvDate(e.target.value)} className="w-full bg-bg border-2 border-border rounded-xl px-3 py-3 text-white focus:outline-none focus:border-accent font-mono font-bold transition-colors" />
-            </div>
+          <div>
+            <label className="block text-xs font-black text-text-muted mb-2 uppercase tracking-widest">Date</label>
+            <input type="date" value={evDate} onChange={e => setEvDate(e.target.value)} className="w-full bg-bg border-2 border-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-accent font-mono font-bold transition-colors" />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-black text-text-muted mb-2 uppercase tracking-widest">Start Time</label>
-              <input type="time" value={evStartTime} onChange={e => setEvStartTime(e.target.value)} className="w-full bg-bg border-2 border-border rounded-xl px-3 py-3 text-white focus:outline-none focus:border-accent font-mono font-bold transition-colors" />
+              <input type="time" value={evStartTime} onChange={e => {
+                const val = e.target.value;
+                setEvStartTime(val);
+                if (val) {
+                  const [h, m] = val.split(':').map(Number);
+                  const total = h * 60 + m + 60;
+                  const eh = Math.floor(total / 60) % 24;
+                  const em = total % 60;
+                  setEvEndTime(`${String(eh).padStart(2,'0')}:${String(em).padStart(2,'0')}`);
+                }
+              }} className="w-full bg-bg border-2 border-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-accent font-mono font-bold transition-colors" />
             </div>
             <div>
               <label className="block text-xs font-black text-text-muted mb-2 uppercase tracking-widest">End Time</label>
-              <input type="time" value={evEndTime} onChange={e => setEvEndTime(e.target.value)} className="w-full bg-bg border-2 border-border rounded-xl px-3 py-3 text-white focus:outline-none focus:border-accent font-mono font-bold transition-colors" />
+              <input type="time" value={evEndTime} onChange={e => setEvEndTime(e.target.value)} className="w-full bg-bg border-2 border-border rounded-xl px-4 py-3 text-white focus:outline-none focus:border-accent font-mono font-bold transition-colors" />
             </div>
           </div>
           

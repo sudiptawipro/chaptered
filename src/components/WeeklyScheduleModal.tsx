@@ -118,7 +118,17 @@ export default function WeeklyScheduleModal({ isOpen, onClose }: Props) {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-black text-text-muted uppercase tracking-widest mb-2">Start Time</label>
-              <input type="time" value={startTime} onChange={e => setStartTime(e.target.value)} className="w-full bg-bg border-2 border-border rounded-xl px-4 py-3 text-white font-bold outline-none focus:border-accent" />
+              <input type="time" value={startTime} onChange={e => {
+                const val = e.target.value;
+                setStartTime(val);
+                if (val) {
+                  const [h, m] = val.split(':').map(Number);
+                  const total = h * 60 + m + 60;
+                  const eh = Math.floor(total / 60) % 24;
+                  const em = total % 60;
+                  setEndTime(`${String(eh).padStart(2,'0')}:${String(em).padStart(2,'0')}`);
+                }
+              }} className="w-full bg-bg border-2 border-border rounded-xl px-4 py-3 text-white font-bold outline-none focus:border-accent" />
             </div>
             <div>
               <label className="block text-xs font-black text-text-muted uppercase tracking-widest mb-2">End Time</label>
