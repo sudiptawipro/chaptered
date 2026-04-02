@@ -23,7 +23,6 @@ import {
   codeHasData,
   getCloudUpdatedAt,
 } from '../utils/cloudSync';
-import { reviveDatesExternal } from '../utils/reviveDates';
 
 export default function Settings() {
   const { state, dispatch } = useAppContext();
@@ -199,12 +198,13 @@ export default function Settings() {
       if (hasCloud) {
         const cloudData = await pullFromCloud(code);
         if (cloudData) {
-          const parsed = reviveDatesExternal(cloudData);
-          // Write to localforage FIRST so auto-save doesn't overwrite with stale local state
-          const localforage = (await import('localforage')).default;
-          await localforage.setItem('chaptered_state', parsed);
-          dispatch({ type: 'SET_INITIAL_STATE', payload: parsed as any });
-          showToast(`Joined ${code} — data loaded from cloud!`);
+          // Write directly to localforage and reload — avoids any auto-save race conditions
+          const lf = (await import('localforage')).default;
+          lf.config({ name: 'ChapteredApp', storeName: 'app_state' });
+          await lf.setItem('chaptered_state', cloudData);
+          showToast(`Joined ${code} — loading data…`);
+          setTimeout(() => window.location.reload(), 800);
+          return;
         }
       } else {
         // No cloud data yet — this is the first device, push local data up
