@@ -200,6 +200,9 @@ export default function Settings() {
         const cloudData = await pullFromCloud(code);
         if (cloudData) {
           const parsed = reviveDatesExternal(cloudData);
+          // Write to localforage FIRST so auto-save doesn't overwrite with stale local state
+          const localforage = (await import('localforage')).default;
+          await localforage.setItem('chaptered_state', parsed);
           dispatch({ type: 'SET_INITIAL_STATE', payload: parsed as any });
           showToast(`Joined ${code} — data loaded from cloud!`);
         }
