@@ -19,8 +19,11 @@ import {
   clearHouseholdCode,
   isValidCode,
   pushToCloud,
+  pullFromCloud,
+  codeHasData,
   getCloudUpdatedAt,
 } from '../utils/cloudSync';
+import { reviveDatesExternal } from '../utils/reviveDates';
 
 export default function Settings() {
   const { state, dispatch } = useAppContext();
@@ -190,12 +193,26 @@ export default function Settings() {
     setCloudBusy(true); setCodeError('');
     try {
       await saveHouseholdCode(code);
-      await pushToCloud(code, state);
+
+      // Pull first — if cloud already has data for this code, load it (joining)
+      const hasCloud = await codeHasData(code);
+      if (hasCloud) {
+        const cloudData = await pullFromCloud(code);
+        if (cloudData) {
+          const parsed = reviveDatesExternal(cloudData);
+          dispatch({ type: 'SET_INITIAL_STATE', payload: parsed as any });
+          showToast(`Joined ${code} — data loaded from cloud!`);
+        }
+      } else {
+        // No cloud data yet — this is the first device, push local data up
+        await pushToCloud(code, state);
+        showToast(`Household code set: ${code} — data uploaded!`);
+      }
+
       const updated = await getCloudUpdatedAt(code);
       setHouseholdCode(code);
       setCloudUpdatedAt(updated);
       setNewCodeInput('');
-      showToast(`Household code set: ${code} — data synced!`);
     } catch { setCodeError('Network error. Try again.'); }
     finally { setCloudBusy(false); }
   };
