@@ -13,6 +13,14 @@ import {
   getBackupInterval,
   setBackupInterval,
 } from '../utils/autoBackup';
+import {
+  getHouseholdCode,
+  saveHouseholdCode,
+  clearHouseholdCode,
+  isValidCode,
+  pushToCloud,
+  getCloudUpdatedAt,
+} from '../utils/cloudSync';
 
 export default function Settings() {
   const { state, dispatch } = useAppContext();
@@ -162,6 +170,56 @@ export default function Settings() {
     return `In ${days} day${days > 1 ? 's' : ''}`;
   };
 
+  // Cloud Sync state
+  const [householdCode, setHouseholdCode] = useState<string | null>(null);
+  const [cloudUpdatedAt, setCloudUpdatedAt] = useState<string | null>(null);
+  const [newCodeInput, setNewCodeInput] = useState('');
+  const [codeError, setCodeError] = useState('');
+  const [cloudBusy, setCloudBusy] = useState(false);
+
+  useEffect(() => {
+    getHouseholdCode().then(code => {
+      setHouseholdCode(code);
+      if (code) getCloudUpdatedAt(code).then(setCloudUpdatedAt);
+    });
+  }, []);
+
+  const handleSaveCode = async () => {
+    const code = newCodeInput.toUpperCase().trim();
+    if (!isValidCode(code)) { setCodeError('4–12 letters/numbers only (e.g. AARY-HOME)'); return; }
+    setCloudBusy(true); setCodeError('');
+    try {
+      await saveHouseholdCode(code);
+      await pushToCloud(code, state);
+      const updated = await getCloudUpdatedAt(code);
+      setHouseholdCode(code);
+      setCloudUpdatedAt(updated);
+      setNewCodeInput('');
+      showToast(`Household code set: ${code} — data synced!`);
+    } catch { setCodeError('Network error. Try again.'); }
+    finally { setCloudBusy(false); }
+  };
+
+  const handleSyncNow = async () => {
+    if (!householdCode) return;
+    setCloudBusy(true);
+    try {
+      await pushToCloud(householdCode, state);
+      const updated = await getCloudUpdatedAt(householdCode);
+      setCloudUpdatedAt(updated);
+      showToast('Synced to cloud!');
+    } catch { showToast('Sync failed. Check your connection.'); }
+    finally { setCloudBusy(false); }
+  };
+
+  const handleDisconnect = async () => {
+    if (!window.confirm('Disconnect cloud sync? Data stays on this device.')) return;
+    await clearHouseholdCode();
+    setHouseholdCode(null);
+    setCloudUpdatedAt(null);
+    showToast('Cloud sync disconnected.');
+  };
+
   // Data Sync Form
   const exportData = () => {
     const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
@@ -264,9 +322,13 @@ export default function Settings() {
                {tab.icon} {tab.label}
              </button>
            ))}
-           <div className="pt-4 mt-4 border-t border-border opacity-50">
-             <div className="px-4 py-3 text-[10px] font-bold text-text-muted uppercase tracking-widest text-center">
-               Personal Offline Mode
+           <div className="pt-4 mt-4 border-t border-border">
+             <div className="px-4 py-3 text-[10px] font-bold text-text-muted uppercase tracking-widest text-center space-y-1">
+               <div>Personal Offline Mode</div>
+               <div className="font-mono text-[9px] opacity-60 tracking-widest">
+                 build&nbsp;
+                 <span className="text-accent/70">{typeof __COMMIT_HASH__ !== 'undefined' ? __COMMIT_HASH__ : 'dev'}</span>
+               </div>
              </div>
            </div>
         </div>
@@ -690,6 +752,57 @@ export default function Settings() {
                    >
                      Direct Sync to Disk
                    </button>
+                 </div>
+
+                 {/* ── Cloud Sync ──────────────────────────────────────── */}
+                 <div className="bg-bg p-5 rounded-xl border border-border space-y-4">
+                   <h3 className="font-bold text-white flex items-center gap-2">
+                     <Zap size={16} className="text-accent" /> Cloud Sync
+                     {householdCode && <span className="ml-auto text-[10px] font-black uppercase tracking-widest text-green bg-green/10 border border-green/20 px-2 py-0.5 rounded-full">● Connected</span>}
+                   </h3>
+
+                   {householdCode ? (
+                     <>
+                       <div className="flex items-center justify-between gap-3 bg-bg-raised border border-border rounded-xl px-4 py-3">
+                         <div>
+                           <div className="text-[10px] font-black uppercase tracking-widest text-text-muted mb-0.5">Household Code</div>
+                           <div className="text-xl font-mono font-black text-white tracking-[0.25em]">{householdCode}</div>
+                           {cloudUpdatedAt && <div className="text-[10px] text-text-muted mt-1">Last synced: {new Date(cloudUpdatedAt).toLocaleString()}</div>}
+                         </div>
+                         <div className="flex flex-col gap-2 shrink-0">
+                           <button onClick={handleSyncNow} disabled={cloudBusy}
+                             className="text-xs font-bold px-3 py-1.5 rounded-lg bg-accent/10 hover:bg-accent/20 border border-accent/30 text-accent transition-colors disabled:opacity-40">
+                             {cloudBusy ? '…' : 'Sync Now'}
+                           </button>
+                           <button onClick={handleDisconnect}
+                             className="text-xs font-bold px-3 py-1.5 rounded-lg bg-bg hover:bg-border border border-border text-text-muted transition-colors">
+                             Disconnect
+                           </button>
+                         </div>
+                       </div>
+                       <p className="text-[11px] text-text-muted">Share the code above with a parent or another device to keep data in sync. Any change saves automatically.</p>
+                     </>
+                   ) : (
+                     <>
+                       <p className="text-xs text-text-muted">Enter a household code to sync data across devices (student + parent). All devices with the same code stay in sync automatically.</p>
+                       <div className="flex gap-2">
+                         <input
+                           type="text"
+                           value={newCodeInput}
+                           onChange={e => { setNewCodeInput(e.target.value.toUpperCase()); setCodeError(''); }}
+                           onKeyDown={e => e.key === 'Enter' && handleSaveCode()}
+                           placeholder="e.g. AARY-HOME"
+                           maxLength={12}
+                           className="flex-1 bg-bg-raised border-2 border-border rounded-xl px-4 py-2.5 text-white font-mono font-bold uppercase tracking-widest outline-none focus:border-accent transition-colors"
+                         />
+                         <button onClick={handleSaveCode} disabled={!newCodeInput.trim() || cloudBusy}
+                           className="px-4 py-2.5 bg-accent hover:bg-accent-hover text-white font-bold rounded-xl transition-colors disabled:opacity-40 text-sm">
+                           {cloudBusy ? '…' : 'Connect'}
+                         </button>
+                       </div>
+                       {codeError && <p className="text-[11px] text-red-400 font-bold">{codeError}</p>}
+                     </>
+                   )}
                  </div>
 
                  {/* ── Auto Backup ─────────────────────────────────────── */}

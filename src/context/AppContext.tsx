@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useReducer, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import localforage from 'localforage';
+import { getHouseholdCode, pushToCloud, pullFromCloud } from '../utils/cloudSync';
 
 // ==========================================
 // TYPES
@@ -773,6 +774,42 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     async function loadData() {
       try {
+        // ── Try cloud first if a household code is set ───────────────────
+        const code = await getHouseholdCode();
+        let cloudLoaded = false;
+        if (code) {
+          const cloudData = await pullFromCloud(code);
+          if (!cancelled && cloudData) {
+            const parsed = reviveDates(cloudData) as AppState;
+            const merged: AppState = {
+              ...initialState,
+              ...parsed,
+              profile: { ...initialState.profile, ...(parsed.profile || {}) },
+              subjects: parsed.subjects || [],
+              homework: parsed.homework || [],
+              exams: parsed.exams || [],
+              calendarEvents: parsed.calendarEvents || [],
+              studySessions: parsed.studySessions || [],
+              doubts: parsed.doubts || [],
+              moodLog: parsed.moodLog || [],
+              testMarks: parsed.testMarks || [],
+              quizHistory: parsed.quizHistory || [],
+              mockExamResults: parsed.mockExamResults || [],
+              timerState: parsed.timerState ? { ...initialTimerState, ...parsed.timerState, running: false } : initialTimerState,
+              examTypes: parsed.examTypes?.length ? parsed.examTypes : initialState.examTypes,
+              eventTypes: parsed.eventTypes?.length ? parsed.eventTypes : initialState.eventTypes,
+              doubtCategories: parsed.doubtCategories?.length ? parsed.doubtCategories : initialState.doubtCategories,
+              blockTypes: parsed.blockTypes?.length ? parsed.blockTypes : initialState.blockTypes,
+            };
+            dispatch({ type: 'SET_INITIAL_STATE', payload: merged });
+            // Also write cloud data to local so offline still works
+            await localforage.setItem(STORAGE_KEY, merged);
+            cloudLoaded = true;
+          }
+        }
+
+        // ── Fall back to local storage if cloud not available ─────────────
+        if (!cloudLoaded) {
         const savedData = await localforage.getItem<AppState>(STORAGE_KEY);
         if (!cancelled && savedData) {
           const parsed = reviveDates(savedData) as AppState;
@@ -798,6 +835,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           };
           dispatch({ type: 'SET_INITIAL_STATE', payload: merged });
         }
+        } // end if (!cloudLoaded)
       } catch (err) {
         console.error('Chaptered: Load Phase Error:', err);
       } finally {
@@ -835,6 +873,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const timer = setTimeout(async () => {
       try {
         await localforage.setItem(STORAGE_KEY, state);
+        // Also push to cloud if household code is set
+        const code = await getHouseholdCode();
+        if (code) await pushToCloud(code, state);
         setLastSaveTime(new Date());
       } catch (err) {
         console.error('Chaptered: Auto-save failed:', err);
