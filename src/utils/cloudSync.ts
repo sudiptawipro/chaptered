@@ -22,9 +22,11 @@ export async function clearHouseholdCode(): Promise<void> {
 // ── Push local state to Supabase ─────────────────────────────────────────────
 export async function pushToCloud(code: string, data: object): Promise<boolean> {
   try {
+    // JSON round-trip ensures Date objects become ISO strings (not empty {} in JSONB)
+    const serialized = JSON.parse(JSON.stringify(data));
     const { error } = await supabase
       .from('household_data')
-      .upsert({ household_code: code, data }, { onConflict: 'household_code' });
+      .upsert({ household_code: code, data: serialized }, { onConflict: 'household_code' });
     return !error;
   } catch {
     return false;
