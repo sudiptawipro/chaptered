@@ -1,19 +1,22 @@
 import { supabase } from '../lib/supabase';
-import localforage from 'localforage';
 
 const CODE_KEY = 'chaptered-household-code';
 
-// ── Household code storage ────────────────────────────────────────────────────
+// ── Household code — localStorage (sync, no config needed) ───────────────────
+export function getHouseholdCodeSync(): string | null {
+  return localStorage.getItem(CODE_KEY);
+}
+
 export async function getHouseholdCode(): Promise<string | null> {
-  return localforage.getItem<string>(CODE_KEY);
+  return localStorage.getItem(CODE_KEY);
 }
 
 export async function saveHouseholdCode(code: string): Promise<void> {
-  await localforage.setItem(CODE_KEY, code.toUpperCase().trim());
+  localStorage.setItem(CODE_KEY, code.toUpperCase().trim());
 }
 
 export async function clearHouseholdCode(): Promise<void> {
-  await localforage.removeItem(CODE_KEY);
+  localStorage.removeItem(CODE_KEY);
 }
 
 // ── Push local state to Supabase ─────────────────────────────────────────────

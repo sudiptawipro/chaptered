@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useAppContext } from '../context/AppContext';
 import ChapteredLogo from './ChapteredLogo';
+import localforage from 'localforage';
 import { saveHouseholdCode, isValidCode, codeHasData, pushToCloud, pullFromCloud } from '../utils/cloudSync';
 
 const CURRICULUMS = ['IGCSE', 'IB (MYP)', 'IB (DP)', 'A-Levels', 'CBSE', 'ICSE', 'AP (US)', 'Other'];
@@ -40,16 +41,13 @@ export default function Onboarding() {
           setCodeError('No data found for this code. Check the code or create a new one.');
           return;
         }
-        // Pull cloud data and load it
+        // Pull cloud data, write to localforage, then reload
         const cloudData = await pullFromCloud(code);
         if (cloudData) {
-          const { reviveDatesExternal } = await import('../utils/reviveDates');
-          const parsed = reviveDatesExternal(cloudData);
-          dispatch({ type: 'SET_INITIAL_STATE', payload: parsed as any });
+          await saveHouseholdCode(code);
+          await localforage.setItem('chaptered_state', cloudData);
+          setTimeout(() => window.location.reload(), 500);
         }
-        await saveHouseholdCode(code);
-        // Done — no need for name/year/curriculum since data is loaded
-        dispatch({ type: 'UPDATE_PROFILE', payload: {} }); // trigger re-render
         return;
       } else {
         // Create mode: save code, upload current local data (migration)

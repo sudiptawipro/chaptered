@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useReducer, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import localforage from 'localforage';
-import { getHouseholdCode, pushToCloud, pullFromCloud } from '../utils/cloudSync';
+import { getHouseholdCodeSync, pushToCloud, pullFromCloud } from '../utils/cloudSync';
 
 // ==========================================
 // TYPES
@@ -775,7 +775,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     async function loadData() {
       try {
         // ── Try cloud first if a household code is set ───────────────────
-        const code = await getHouseholdCode();
+        const code = getHouseholdCodeSync(); // synchronous localStorage read
         let cloudLoaded = false;
         if (code) {
           const cloudData = await pullFromCloud(code);
@@ -874,7 +874,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       try {
         await localforage.setItem(STORAGE_KEY, state);
         // Also push to cloud if household code is set
-        const code = await getHouseholdCode();
+        const code = getHouseholdCodeSync();
         if (code) await pushToCloud(code, state);
         setLastSaveTime(new Date());
       } catch (err) {

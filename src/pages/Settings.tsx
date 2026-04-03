@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import localforage from 'localforage';
 import { User, Database, Sliders, X, Plus, Lock, TrendingUp, ShieldAlert, Zap, BarChart2, Palette, Sun, Moon, Volume2, VolumeX, Key, Eye, EyeOff, FolderOpen, CheckCircle2, Clock, RefreshCw } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 import { useTheme } from '../context/ThemeContext';
@@ -198,12 +199,10 @@ export default function Settings() {
       if (hasCloud) {
         const cloudData = await pullFromCloud(code);
         if (cloudData) {
-          // Write directly to localforage and reload — avoids any auto-save race conditions
-          const lf = (await import('localforage')).default;
-          lf.config({ name: 'ChapteredApp', storeName: 'app_state' });
-          await lf.setItem('chaptered_state', cloudData);
+          // Write directly to localforage (static import, correct store) then reload
+          await localforage.setItem('chaptered_state', cloudData);
           showToast(`Joined ${code} — loading data…`);
-          setTimeout(() => window.location.reload(), 800);
+          setTimeout(() => window.location.reload(), 1000);
           return;
         }
       } else {
