@@ -194,21 +194,23 @@ export default function Settings() {
     try {
       await saveHouseholdCode(code);
 
-      // Pull first — if cloud already has data for this code, load it (joining)
+      // Compare local vs cloud: whichever has more data wins
       const hasCloud = await codeHasData(code);
-      if (hasCloud) {
+      const localItemCount = (state.subjects?.length || 0) + (state.calendarEvents?.length || 0) + (state.homework?.length || 0);
+
+      if (hasCloud && localItemCount === 0) {
+        // Empty local device joining existing household — pull cloud data
         const cloudData = await pullFromCloud(code);
         if (cloudData) {
-          // Write directly to localforage (static import, correct store) then reload
           await localforage.setItem('chaptered_state', cloudData);
           showToast(`Joined ${code} — loading data…`);
           setTimeout(() => window.location.reload(), 1000);
           return;
         }
       } else {
-        // No cloud data yet — this is the first device, push local data up
+        // Local has data (or cloud is empty) — push local up to cloud
         await pushToCloud(code, state);
-        showToast(`Household code set: ${code} — data uploaded!`);
+        showToast(`Connected: ${code} — your data synced to cloud!`);
       }
 
       const updated = await getCloudUpdatedAt(code);
