@@ -731,6 +731,14 @@ function reviveDates(obj: any): any {
     return obj.map(reviveDates);
   }
   if (typeof obj === 'object') {
+    // Handle corrupted Date objects that became {} in storage
+    if (obj instanceof Date) {
+      return isNaN(obj.getTime()) ? null : obj;
+    }
+    // Empty object {} where a date should be — return null so callers can handle it
+    if (Object.keys(obj).length === 0 && obj.constructor === Object) {
+      return obj; // keep as-is — callers check for date fields specifically
+    }
     const newObj: any = {};
     for (const key in obj) {
       newObj[key] = reviveDates(obj[key]);
@@ -738,6 +746,19 @@ function reviveDates(obj: any): any {
     return newObj;
   }
   return obj;
+}
+
+// Serialize state to JSON-safe format (Dates → ISO strings) before storage.
+// This prevents the {} corruption that occurs when IndexedDB/structured-clone
+// fails on Date objects in some environments.
+function serializeForStorage(obj: any): any {
+  return JSON.parse(JSON.stringify(obj, (_key, value) => {
+    // Date objects → ISO string
+    if (value instanceof Date) {
+      return isNaN(value.getTime()) ? null : value.toISOString();
+    }
+    return value;
+  }));
 }
 
 // ==========================================
@@ -837,10 +858,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setIsSaving(true);
     const timer = setTimeout(async () => {
       try {
-        await localforage.setItem(STORAGE_KEY, state);
+        // Serialize dates to ISO strings BEFORE storing — prevents {} corruption
+        const serialized = serializeForStorage(state);
+        await localforage.setItem(STORAGE_KEY, serialized);
         // Also push to cloud if household code is set
         const code = getHouseholdCodeSync();
-        if (code) await pushToCloud(code, state);
+        if (code) await pushToCloud(code, serialized);
         setLastSaveTime(new Date());
       } catch (err) {
         console.error('Chaptered: Auto-save failed:', err);
@@ -864,7 +887,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const forceSave = async () => {
     setIsSaving(true);
     try {
-      await localforage.setItem(STORAGE_KEY, state);
+      const serialized = serializeForStorage(state);
+      await localforage.setItem(STORAGE_KEY, serialized);
       setLastSaveTime(new Date());
       console.log('Chaptered: Forced save complete.');
     } catch (err) {

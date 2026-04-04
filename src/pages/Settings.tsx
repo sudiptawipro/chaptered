@@ -222,15 +222,22 @@ export default function Settings() {
   };
 
   const handleSyncNow = async () => {
-    if (!householdCode) return;
+    if (!householdCode) { showToast('No household code set!'); return; }
     setCloudBusy(true);
     try {
-      await pushToCloud(householdCode, state);
-      const updated = await getCloudUpdatedAt(householdCode);
-      setCloudUpdatedAt(updated);
-      showToast('Synced to cloud!');
-    } catch { showToast('Sync failed. Check your connection.'); }
-    finally { setCloudBusy(false); }
+      const evtCount = state.calendarEvents?.length ?? 0;
+      const subCount = state.subjects?.length ?? 0;
+      const ok = await pushToCloud(householdCode, state);
+      if (ok) {
+        const updated = await getCloudUpdatedAt(householdCode);
+        setCloudUpdatedAt(updated);
+        showToast(`Synced! (${subCount} subjects, ${evtCount} events)`);
+      } else {
+        showToast(`Push returned false — Supabase rejected the write`);
+      }
+    } catch (err: any) {
+      showToast(`Sync error: ${err?.message || String(err)}`);
+    } finally { setCloudBusy(false); }
   };
 
   const handleDisconnect = async () => {
