@@ -807,7 +807,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
             subjects: parsed.subjects || [],
             homework: parsed.homework || [],
             exams: parsed.exams || [],
-            calendarEvents: parsed.calendarEvents || [],
+            calendarEvents: (parsed.calendarEvents || []).filter((e: any) => {
+              // Remove events with corrupted {} dates (from old IndexedDB bug)
+              if (!e.date) return false;
+              if (typeof e.date === 'object' && !(e.date instanceof Date)) return false;
+              if (e.date instanceof Date && isNaN(e.date.getTime())) return false;
+              return true;
+            }),
             studySessions: parsed.studySessions || [],
             doubts: parsed.doubts || [],
             moodLog: parsed.moodLog || [],
