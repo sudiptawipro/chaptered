@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useReducer, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import localforage from 'localforage';
-import { getHouseholdCodeSync, pushToCloud } from '../utils/cloudSync';
+import { getHouseholdCodeSync, pushToCloud, pullFromCloud } from '../utils/cloudSync';
 
 // ==========================================
 // TYPES
@@ -795,11 +795,32 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     async function loadData() {
       try {
-        // ── Always load from local storage (fast, reliable) ──────────────
-        // Cloud sync happens on save (push) and via explicit "Connect" in Settings (pull)
-        const savedData = await localforage.getItem<AppState>(STORAGE_KEY);
-        if (!cancelled && savedData) {
-          const parsed = reviveDates(savedData) as AppState;
+        // ── Cloud-first load when household code is set ──────────────────
+        // Supabase is the source of truth. If a household code is set, try
+        // to pull from the cloud. Only fall back to local cache on failure.
+        const code = getHouseholdCodeSync();
+        let rawData: AppState | null = null;
+
+        if (code) {
+          try {
+            const cloudData = await pullFromCloud(code);
+            if (cloudData) {
+              rawData = cloudData as AppState;
+              // Update local cache with latest cloud data
+              await localforage.setItem(STORAGE_KEY, cloudData);
+            }
+          } catch (err) {
+            console.warn('Chaptered: Cloud pull failed, using local cache:', err);
+          }
+        }
+
+        // Fallback to local cache if no cloud data (offline, no code, or error)
+        if (!rawData) {
+          rawData = await localforage.getItem<AppState>(STORAGE_KEY);
+        }
+
+        if (!cancelled && rawData) {
+          const parsed = reviveDates(rawData) as AppState;
           const merged: AppState = {
             ...initialState,
             ...parsed,
@@ -841,13 +862,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     loadData();
 
-    // Safety net: if storage is corrupted/very slow, force the app to show after 4s
+    // Safety net: if cloud/storage is very slow, force the app to show after 6s
     const safety = setTimeout(() => {
       if (!cancelled) {
         setIsLoaded(true);
         setTimeout(() => { if (!cancelled) setHasCompletedInitialLoad(true); }, 150);
       }
-    }, 4000);
+    }, 6000);
 
     return () => {
       cancelled = true;

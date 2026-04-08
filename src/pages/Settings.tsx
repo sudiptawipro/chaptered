@@ -1,27 +1,13 @@
 import { useState, useRef, useEffect } from 'react';
-import localforage from 'localforage';
-import { User, Database, Sliders, X, Plus, Lock, TrendingUp, ShieldAlert, Zap, BarChart2, Palette, Sun, Moon, Volume2, VolumeX, Key, Eye, EyeOff, FolderOpen, CheckCircle2, Clock, RefreshCw } from 'lucide-react';
+import { User, Database, Sliders, X, Plus, Lock, TrendingUp, ShieldAlert, Zap, BarChart2, Palette, Sun, Moon, Volume2, VolumeX, Key, Eye, EyeOff, ChevronDown } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 import { useTheme } from '../context/ThemeContext';
-import {
-  supportsFilePicker,
-  pickBackupFolder,
-  getStoredHandle,
-  getStoredFolderName,
-  clearStoredHandle,
-  writeBackup,
-  getLastBackupDate,
-  getBackupInterval,
-  setBackupInterval,
-} from '../utils/autoBackup';
 import {
   getHouseholdCode,
   saveHouseholdCode,
   clearHouseholdCode,
   isValidCode,
   pushToCloud,
-  pullFromCloud,
-  codeHasData,
   getCloudUpdatedAt,
 } from '../utils/cloudSync';
 
@@ -101,77 +87,8 @@ export default function Settings() {
     showToast('Configurations saved!');
   };
 
-  // Auto-Backup state
-  const [backupFolderName, setBackupFolderName] = useState<string | null>(null);
-  const [lastBackupDate, setLastBackupDate] = useState<string | null>(null);
-  const [backupInterval, setBackupIntervalState] = useState<number>(7);
-  const [backupBusy, setBackupBusy] = useState(false);
-  const [backupSupported] = useState(supportsFilePicker());
-
-  useEffect(() => {
-    // Load stored backup metadata
-    getStoredFolderName().then(name => setBackupFolderName(name));
-    getLastBackupDate().then(d => setLastBackupDate(d));
-    getBackupInterval().then(i => setBackupIntervalState(i));
-  }, []);
-
-  const handlePickFolder = async () => {
-    const result = await pickBackupFolder();
-    if (result) {
-      setBackupFolderName(result.name);
-      showToast(`Backup folder set: ${result.name}`);
-    }
-  };
-
-  const handleBackupNow = async () => {
-    setBackupBusy(true);
-    try {
-      const handle = await getStoredHandle();
-      if (!handle) { showToast('No folder selected — pick a folder first.'); return; }
-      const date = await writeBackup(handle, state);
-      setLastBackupDate(date);
-      showToast('Backup saved successfully!');
-    } catch {
-      showToast('Backup failed. Please re-select folder.');
-    } finally {
-      setBackupBusy(false);
-    }
-  };
-
-  const handleClearFolder = async () => {
-    await clearStoredHandle();
-    setBackupFolderName(null);
-    showToast('Backup folder removed.');
-  };
-
-  const handleIntervalChange = async (days: number) => {
-    setBackupIntervalState(days);
-    await setBackupInterval(days);
-    showToast(`Auto-backup set to every ${days} day${days > 1 ? 's' : ''}.`);
-  };
-
-  const formatBackupAge = (isoDate: string | null) => {
-    if (!isoDate) return 'Never';
-    const diff = Date.now() - new Date(isoDate).getTime();
-    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-    const hours = Math.floor(diff / (1000 * 60 * 60));
-    if (days === 0 && hours === 0) return 'Just now';
-    if (days === 0) return `${hours}h ago`;
-    if (days === 1) return 'Yesterday';
-    return `${days} days ago`;
-  };
-
-  const nextBackupDue = () => {
-    if (!backupFolderName) return 'No folder set';
-    if (!lastBackupDate) return 'On next app open';
-    const nextDate = new Date(new Date(lastBackupDate).getTime() + backupInterval * 24 * 60 * 60 * 1000);
-    const diff = nextDate.getTime() - Date.now();
-    if (diff <= 0) return 'Overdue — will run next open';
-    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-    const hours = Math.floor(diff / (1000 * 60 * 60));
-    if (days === 0) return `In ~${hours}h`;
-    return `In ${days} day${days > 1 ? 's' : ''}`;
-  };
+  // Advanced (hidden JSON import/export) toggle
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   // Cloud Sync state
   const [householdCode, setHouseholdCode] = useState<string | null>(null);
@@ -189,36 +106,14 @@ export default function Settings() {
 
   const handleSaveCode = async () => {
     const code = newCodeInput.toUpperCase().trim();
-    if (!isValidCode(code)) { setCodeError('4–12 letters/numbers only (e.g. AARY-HOME)'); return; }
+    if (!isValidCode(code)) { setCodeError('4–12 letters/numbers only (e.g. GUNGUN81)'); return; }
     setCloudBusy(true); setCodeError('');
     try {
       await saveHouseholdCode(code);
-
-      // Compare local vs cloud: whichever has more data wins
-      const hasCloud = await codeHasData(code);
-      const localItemCount = (state.subjects?.length || 0) + (state.calendarEvents?.length || 0) + (state.homework?.length || 0);
-
-      if (hasCloud && localItemCount === 0) {
-        // Empty local device joining existing household — pull cloud data
-        const cloudData = await pullFromCloud(code);
-        if (cloudData) {
-          await localforage.setItem('chaptered_state', cloudData);
-          showToast(`Joined ${code} — loading data…`);
-          setTimeout(() => window.location.reload(), 1000);
-          return;
-        }
-      } else {
-        // Local has data (or cloud is empty) — push local up to cloud
-        await pushToCloud(code, state);
-        showToast(`Connected: ${code} — your data synced to cloud!`);
-      }
-
-      const updated = await getCloudUpdatedAt(code);
-      setHouseholdCode(code);
-      setCloudUpdatedAt(updated);
-      setNewCodeInput('');
-    } catch { setCodeError('Network error. Try again.'); }
-    finally { setCloudBusy(false); }
+      showToast(`Connected: ${code} — reloading to sync…`);
+      // Reload so AppContext pulls fresh data from Supabase on boot
+      setTimeout(() => window.location.reload(), 800);
+    } catch { setCodeError('Network error. Try again.'); setCloudBusy(false); }
   };
 
   const handleSyncNow = async () => {
@@ -757,7 +652,7 @@ export default function Settings() {
           {activeTab === 'data' && (
             <div className="bg-bg-card border border-border rounded-2xl p-6">
                <h2 className="text-xl font-bold text-white mb-2">Data & Sync</h2>
-               <p className="text-sm text-text-muted mb-6">Chaptered uses local offline storage on your computer.</p>
+               <p className="text-sm text-text-muted mb-6">Chaptered syncs all your data to the cloud. Enter a household code to share data between devices.</p>
                
                <div className="space-y-6">
                  
@@ -833,114 +728,36 @@ export default function Settings() {
                    )}
                  </div>
 
-                 {/* ── Auto Backup ─────────────────────────────────────── */}
-                 <div className="bg-bg p-5 rounded-xl border border-border space-y-4">
-                   <h3 className="font-bold text-white flex items-center gap-2">
-                     <FolderOpen size={16} className="text-green" /> Auto Backup to Local Folder
-                   </h3>
-
-                   {!backupSupported ? (
-                     <div className="text-xs text-text-muted bg-bg-raised border border-border rounded-lg p-3">
-                       ⚠️ Auto-backup requires Chrome or Edge. Use the manual Export below in other browsers.
+                  {/* ── Advanced: JSON Export / Import (hidden by default) ── */}
+                 <div className="bg-bg p-5 rounded-xl border border-border">
+                   <button
+                     onClick={() => setShowAdvanced(v => !v)}
+                     className="w-full flex items-center justify-between text-left"
+                   >
+                     <h3 className="font-bold text-white flex items-center gap-2">
+                       <Sliders size={16} className="text-text-muted" /> Advanced: Manual JSON Backup
+                     </h3>
+                     <ChevronDown size={16} className={`text-text-muted transition-transform ${showAdvanced ? 'rotate-180' : ''}`} />
+                   </button>
+                   {showAdvanced && (
+                     <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                       <div className="bg-bg-raised p-4 rounded-xl border border-border space-y-2">
+                         <h4 className="font-bold text-white text-sm">Export JSON</h4>
+                         <p className="text-xs text-text-muted mb-3">Download a local backup. Only for emergencies — cloud sync handles this automatically.</p>
+                         <button onClick={exportData} className="w-full bg-bg hover:bg-border text-white px-4 py-2 rounded-lg text-xs font-bold border border-border transition-colors">
+                           Download JSON
+                         </button>
+                       </div>
+                       <div className="bg-bg-raised p-4 rounded-xl border border-border space-y-2">
+                         <h4 className="font-bold text-white text-sm">Import JSON</h4>
+                         <p className="text-xs text-text-muted mb-3">Restore from a JSON backup file.</p>
+                         <input type="file" accept=".json" id="importFile" className="hidden" onChange={importData} />
+                         <label htmlFor="importFile" className="block w-full text-center bg-bg hover:bg-border cursor-pointer text-white px-4 py-2 rounded-lg text-xs font-bold border border-border transition-colors">
+                           Upload JSON
+                         </label>
+                       </div>
                      </div>
-                   ) : (
-                     <>
-                       {/* Folder status row */}
-                       <div className="flex items-center justify-between gap-3 bg-bg-raised border border-border rounded-xl px-4 py-3">
-                         <div className="flex items-center gap-3 min-w-0">
-                           <FolderOpen size={16} className={backupFolderName ? 'text-green' : 'text-text-muted'} />
-                           <div className="min-w-0">
-                             <div className="text-xs font-black uppercase tracking-widest text-text-muted mb-0.5">Backup Folder</div>
-                             <div className="text-sm font-bold text-white truncate">{backupFolderName || 'Not set'}</div>
-                           </div>
-                         </div>
-                         <div className="flex gap-2 shrink-0">
-                           <button
-                             onClick={handlePickFolder}
-                             className="text-xs font-bold px-3 py-1.5 rounded-lg bg-green/10 hover:bg-green/20 border border-green/30 text-green transition-colors"
-                           >
-                             {backupFolderName ? 'Change' : 'Pick Folder'}
-                           </button>
-                           {backupFolderName && (
-                             <button
-                               onClick={handleClearFolder}
-                               className="text-xs font-bold px-3 py-1.5 rounded-lg bg-bg hover:bg-border border border-border text-text-muted transition-colors"
-                             >
-                               Remove
-                             </button>
-                           )}
-                         </div>
-                       </div>
-
-                       {/* Last backup + next due */}
-                       <div className="grid grid-cols-2 gap-3">
-                         <div className="bg-bg-raised border border-border rounded-xl p-3 flex items-start gap-2.5">
-                           <CheckCircle2 size={15} className={lastBackupDate ? 'text-green mt-0.5' : 'text-text-muted mt-0.5'} />
-                           <div>
-                             <div className="text-[10px] font-black uppercase tracking-widest text-text-muted mb-0.5">Last Backup</div>
-                             <div className="text-sm font-bold text-white">{formatBackupAge(lastBackupDate)}</div>
-                             {lastBackupDate && <div className="text-[10px] text-text-muted mt-0.5">{new Date(lastBackupDate).toLocaleDateString()}</div>}
-                           </div>
-                         </div>
-                         <div className="bg-bg-raised border border-border rounded-xl p-3 flex items-start gap-2.5">
-                           <Clock size={15} className="text-sky mt-0.5" />
-                           <div>
-                             <div className="text-[10px] font-black uppercase tracking-widest text-text-muted mb-0.5">Next Auto-Backup</div>
-                             <div className="text-sm font-bold text-white">{nextBackupDue()}</div>
-                           </div>
-                         </div>
-                       </div>
-
-                       {/* Interval selector */}
-                       <div>
-                         <label className="block text-[10px] font-black uppercase tracking-widest text-text-muted mb-2">Auto-Backup Frequency</label>
-                         <div className="flex gap-2">
-                           {[1, 3, 7, 14].map(d => (
-                             <button
-                               key={d}
-                               onClick={() => handleIntervalChange(d)}
-                               className={`flex-1 py-2 text-xs font-bold rounded-lg border transition-colors ${
-                                 backupInterval === d
-                                   ? 'bg-accent/10 border-accent text-accent'
-                                   : 'bg-bg-raised border-border text-text-muted hover:text-white hover:border-text-muted/40'
-                               }`}
-                             >
-                               {d === 1 ? 'Daily' : d === 3 ? '3 days' : d === 7 ? 'Weekly' : '2 weeks'}
-                             </button>
-                           ))}
-                         </div>
-                       </div>
-
-                       {/* Manual backup now */}
-                       <button
-                         onClick={handleBackupNow}
-                         disabled={!backupFolderName || backupBusy}
-                         className="w-full flex items-center justify-center gap-2 py-2.5 bg-green/10 hover:bg-green/20 border border-green/30 text-green text-sm font-bold rounded-xl transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                       >
-                         <RefreshCw size={15} className={backupBusy ? 'animate-spin' : ''} />
-                         {backupBusy ? 'Saving…' : 'Backup Now'}
-                       </button>
-                     </>
                    )}
-                 </div>
-
-                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="bg-bg p-5 rounded-xl border border-border space-y-2">
-                      <h3 className="font-bold text-white">Export App Data</h3>
-                      <p className="text-xs text-text-muted mb-4 text-balance">Download a backup of all your notes, images, and grades.</p>
-                      <button onClick={exportData} className="w-full bg-bg-raised hover:bg-border text-white px-5 py-2.5 rounded-lg text-sm font-bold border border-border transition-colors">
-                        Download JSON
-                      </button>
-                    </div>
-
-                    <div className="bg-bg p-5 rounded-xl border border-border space-y-2">
-                      <h3 className="font-bold text-white">Import App Data</h3>
-                      <p className="text-xs text-text-muted mb-4 text-balance">Load a backup file to restore your entire school library.</p>
-                      <input type="file" accept=".json" id="importFile" className="hidden" onChange={importData} />
-                      <label htmlFor="importFile" className="inline-block w-full text-center bg-bg-raised hover:bg-border cursor-pointer text-white px-5 py-2.5 rounded-lg text-sm font-bold border border-border transition-colors">
-                        Upload JSON
-                      </label>
-                    </div>
                  </div>
 
                  <div className="bg-bg-raised p-5 rounded-xl border border-border space-y-2 mt-8 flex justify-between items-center">

@@ -1,7 +1,5 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { useEffect } from 'react';
 import { useAppContext } from './context/AppContext';
-import { checkAndAutoBackup } from './utils/autoBackup';
 import Layout from './components/Layout';
 import Onboarding from './components/Onboarding';
 import Dashboard from './pages/Dashboard';
@@ -24,11 +22,6 @@ import SubChapterDetail from './pages/SubChapterDetail';
 function AppInner() {
   const { state } = useAppContext();
   const needsOnboarding = !state.profile?.name?.trim();
-
-  // Auto-backup on launch if interval has elapsed and a folder is configured
-  useEffect(() => {
-    checkAndAutoBackup(state);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <BrowserRouter basename="/chaptered">
