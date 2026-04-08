@@ -178,4 +178,5 @@ export const mockState: AppState = {
   eventTypes: ['School Class', 'Online Tuition', 'Self-Study', 'Exam', 'Project Deadline', 'Personal Note'],
   doubtCategories: ['Concept', 'Formula', 'Problem-Solving', 'General', 'Other'],
   blockTypes: ['Study', 'Homework', 'Revision', 'Break', 'Exercise', 'Other'],
+  attendanceLogs: [],
 };

@@ -8,7 +8,7 @@ import ConfirmModal from '../components/ConfirmModal';
 import ColorPicker from '../components/ColorPicker';
 import EmojiPicker from '../components/EmojiPicker';
 import SubjectIcon from '../components/SubjectIcon';
-import type { Subject } from '../context/AppContext';
+import type { Subject, WeekDay } from '../context/AppContext';
 
 export default function Subjects() {
   const { state, dispatch } = useAppContext();
@@ -34,6 +34,13 @@ export default function Subjects() {
   const [subName, setSubName] = useState('');
   const [subColor, setSubColor] = useState('#3B82F6');
   const [subIcon, setSubIcon] = useState('GraduationCap');
+  const [subOnlineClass, setSubOnlineClass] = useState(false);
+  const [subDays, setSubDays] = useState<WeekDay[]>([]);
+  const [subTime, setSubTime] = useState('16:00');
+
+  const ALL_DAYS: WeekDay[] = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  const toggleDay = (day: WeekDay) =>
+    setSubDays(prev => prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]);
 
   // Chapter Modal States
   const [isAddChapterOpen, setIsAddChapterOpen] = useState(false);
@@ -45,6 +52,9 @@ export default function Subjects() {
     setSubName('');
     setSubColor('#3B82F6');
     setSubIcon('GraduationCap');
+    setSubOnlineClass(false);
+    setSubDays([]);
+    setSubTime('16:00');
     setIsSubjectModalOpen(true);
   };
 
@@ -53,15 +63,22 @@ export default function Subjects() {
     setSubName(sub.name);
     setSubColor(sub.colour);
     setSubIcon(sub.icon);
+    setSubOnlineClass(sub.onlineClass || false);
+    setSubDays(sub.classSchedule?.days || []);
+    setSubTime(sub.classSchedule?.time || '16:00');
     setIsSubjectModalOpen(true);
   };
 
   const handleSaveSubject = () => {
     if (!subName.trim()) return;
+    const scheduleData = subOnlineClass && subDays.length > 0
+      ? { onlineClass: true, classSchedule: { days: subDays, time: subTime } }
+      : { onlineClass: false, classSchedule: undefined };
+
     if (editingSubject) {
       dispatch({
         type: 'EDIT_SUBJECT',
-        payload: { ...editingSubject, name: subName, colour: subColor, icon: subIcon }
+        payload: { ...editingSubject, name: subName, colour: subColor, icon: subIcon, ...scheduleData }
       });
     } else {
       dispatch({
@@ -71,7 +88,8 @@ export default function Subjects() {
           name: subName,
           colour: subColor,
           icon: subIcon,
-          chapters: []
+          chapters: [],
+          ...scheduleData
         }
       });
     }
@@ -145,7 +163,10 @@ export default function Subjects() {
                     </div>
                     <div>
                       <div className="font-bold text-2xl text-white tracking-tight">{sub.name}</div>
-                      <div className="text-sm font-medium text-text-muted mt-1">{doneChaps} of {sub.chapters.length} chapters done</div>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="text-sm font-medium text-text-muted">{doneChaps} of {sub.chapters.length} chapters done</span>
+                        {sub.onlineClass && <span className="text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded bg-accent/10 text-accent border border-accent/20">Online</span>}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -272,8 +293,52 @@ export default function Subjects() {
             </div>
           </div>
 
-          <div className="pt-4 border-t border-border">
-            <button 
+          {/* Online Class Toggle */}
+          <div className="border-t border-border pt-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-sm font-bold text-white">Online Class</div>
+                <div className="text-xs text-text-muted">Enable attendance tracking for this subject</div>
+              </div>
+              <button
+                onClick={() => setSubOnlineClass(v => !v)}
+                className={`w-12 h-6 rounded-full transition-colors relative ${subOnlineClass ? 'bg-accent' : 'bg-bg-raised border border-border'}`}
+              >
+                <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${subOnlineClass ? 'left-6' : 'left-0.5'}`} />
+              </button>
+            </div>
+
+            {subOnlineClass && (
+              <div className="space-y-3 bg-bg rounded-xl p-4 border border-border">
+                <div>
+                  <label className="text-xs font-black text-text-muted uppercase tracking-widest mb-2 block">Class Days</label>
+                  <div className="flex gap-1.5 flex-wrap">
+                    {ALL_DAYS.map(day => (
+                      <button
+                        key={day}
+                        onClick={() => toggleDay(day)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${subDays.includes(day) ? 'bg-accent text-white' : 'bg-bg-raised border border-border text-text-muted hover:text-white'}`}
+                      >
+                        {day}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label className="text-xs font-black text-text-muted uppercase tracking-widest mb-2 block">Class Time</label>
+                  <input
+                    type="time"
+                    value={subTime}
+                    onChange={e => setSubTime(e.target.value)}
+                    className="bg-bg-raised border border-border rounded-lg px-3 py-2 text-white text-sm font-mono outline-none focus:border-accent transition-colors"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="pt-2">
+            <button
               onClick={handleSaveSubject}
               className="w-full bg-accent hover:bg-accent-hover text-white py-3.5 rounded-xl font-bold text-lg transition-transform hover:scale-[1.02] shadow-xl shadow-accent/20"
             >

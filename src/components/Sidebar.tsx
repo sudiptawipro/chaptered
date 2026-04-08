@@ -5,7 +5,7 @@ import {
   CalendarDays, CheckSquare, MessageCircleQuestion,
   Timer, GraduationCap, Settings,
   Search, Flame, Smile, Meh, Frown, Library, ExternalLink, Eye,
-  BarChart2, Wand2, Sparkles
+  BarChart2, Wand2, Sparkles, ClipboardCheck
 } from 'lucide-react';
 import ChapteredLogo from './ChapteredLogo';
 import { useAppContext, initialState } from '../context/AppContext';
@@ -136,6 +136,7 @@ export default function Sidebar() {
           { name: 'Planner', path: '/planner', icon: CalendarDays },
           { name: 'Calendar', path: '/calendar', icon: CalendarIcon },
           { name: 'Homework', path: '/homework', icon: CheckSquare, badge: overdueCount },
+          { name: 'Attendance', path: '/attendance', icon: ClipboardCheck },
           { name: 'Doubt Bank', path: '/doubts', icon: MessageCircleQuestion },
           { name: 'Focus Timer', path: '/timer', icon: Timer },
           { name: 'Exams', path: '/exams', icon: GraduationCap },

@@ -18,6 +18,7 @@ import Analytics from './pages/Analytics';
 import RevisionPlanner from './pages/RevisionPlanner';
 import MockExam from './pages/MockExam';
 import SubChapterDetail from './pages/SubChapterDetail';
+import Attendance from './pages/Attendance';
 
 function AppInner() {
   const { state } = useAppContext();
@@ -44,6 +45,7 @@ function AppInner() {
           <Route path="/analytics" element={<Analytics />} />
           <Route path="/revision" element={<RevisionPlanner />} />
           <Route path="/mock-exam" element={<MockExam />} />
+          <Route path="/attendance" element={<Attendance />} />
         </Routes>
       </Layout>
     </BrowserRouter>

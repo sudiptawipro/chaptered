@@ -1,11 +1,12 @@
 import { useAppContext } from '../context/AppContext';
+import type { WeekDay } from '../context/AppContext';
 import { format, differenceInDays, isSameDay } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import {
   Play, CheckCircle2, Circle, ArrowRight, Loader2, Save, Sparkles,
   BookOpen, Plus, Clock, Flame, Timer, Coffee, CalendarX2, PartyPopper,
   CheckSquare, Target, Smile, Meh, Frown, Minus,
-  Hand, Sun, Moon, Star, MessageCircleQuestion
+  Hand, Sun, Moon, Star, MessageCircleQuestion, ClipboardCheck, Check, X, RefreshCw
 } from 'lucide-react';
 import SubjectBadge from '../components/SubjectBadge';
 import ProgressBar from '../components/ProgressBar';
@@ -84,6 +85,47 @@ export default function Dashboard() {
   const handleToggleHw = (id: string, currentDone: boolean) => {
     dispatch({ type: 'TOGGLE_HOMEWORK', payload: id });
     if (!currentDone) playSound('complete');
+  };
+
+  // ── Pending attendance classes ────────────────────────────────────────
+  // Generate all scheduled class dates from each online subject's start up to today,
+  // then subtract ones that already have an attendance log.
+  const WEEKDAY_JS: Record<WeekDay, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+
+  const pendingClasses: { subjectId: string; subjectName: string; colour: string; date: Date }[] = [];
+  const onlineSubjects = (state.subjects || []).filter(s => s.onlineClass && s.classSchedule?.days?.length);
+  const todayMidnight = new Date(today); todayMidnight.setHours(0, 0, 0, 0);
+  const LOOKBACK_DAYS = 60; // only look back 60 days to keep list manageable
+
+  for (const sub of onlineSubjects) {
+    const days = sub.classSchedule!.days;
+    for (let i = LOOKBACK_DAYS; i >= 0; i--) {
+      const d = new Date(todayMidnight);
+      d.setDate(d.getDate() - i);
+      const jsDay = d.getDay();
+      const dayName = (Object.keys(WEEKDAY_JS) as WeekDay[]).find(k => WEEKDAY_JS[k] === jsDay);
+      if (!dayName || !days.includes(dayName)) continue;
+      const dStr = d.toISOString().split('T')[0];
+      const alreadyLogged = (state.attendanceLogs || []).some(
+        l => l.subjectId === sub.id && new Date(l.date).toISOString().split('T')[0] === dStr
+      );
+      if (!alreadyLogged) {
+        pendingClasses.push({ subjectId: sub.id, subjectName: sub.name, colour: sub.colour, date: new Date(d) });
+      }
+    }
+  }
+  // Sort oldest first
+  pendingClasses.sort((a, b) => a.date.getTime() - b.date.getTime());
+
+  const handleAttendanceTag = (subjectId: string, date: Date, status: 'attended' | 'cancelled' | 'rescheduled') => {
+    const log = {
+      id: `att-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      subjectId,
+      date,
+      status,
+      loggedAt: new Date(),
+    };
+    dispatch({ type: 'LOG_ATTENDANCE', payload: log });
   };
 
   // ── Greeting icon ─────────────────────────────────────────────────────
@@ -477,6 +519,57 @@ export default function Dashboard() {
               })}
             </div>
           </div>
+
+          {/* Pending Attendance */}
+          {pendingClasses.length > 0 && (
+            <div className="bg-bg-card border border-border rounded-2xl p-5">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-base font-bold text-white flex items-center gap-2">
+                  <ClipboardCheck size={16} className="text-yellow-400" />
+                  Pending Attendance
+                  <span className="bg-yellow-400/15 text-yellow-400 text-[10px] px-2 py-0.5 rounded-full font-bold">{pendingClasses.length}</span>
+                </h2>
+                <button onClick={() => navigate('/attendance')} className="text-xs font-medium text-text-muted hover:text-white transition-colors">
+                  View all →
+                </button>
+              </div>
+              <div className="space-y-2">
+                {pendingClasses.slice(0, 5).map((cls, idx) => (
+                  <div key={`${cls.subjectId}-${cls.date.toISOString()}-${idx}`} className="flex items-center gap-3 p-3 bg-bg-raised rounded-xl border border-border">
+                    <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: `${cls.colour}20` }}>
+                      <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: cls.colour }} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-bold text-white truncate">{cls.subjectName}</div>
+                      <div className="text-[11px] text-text-muted">{format(cls.date, 'd MMM yyyy')}</div>
+                    </div>
+                    <div className="flex gap-1.5 shrink-0">
+                      <button
+                        onClick={() => handleAttendanceTag(cls.subjectId, cls.date, 'attended')}
+                        title="Attended"
+                        className="p-1.5 rounded-lg bg-green/10 border border-green/20 text-green hover:bg-green/20 transition-colors"
+                      ><Check size={12} /></button>
+                      <button
+                        onClick={() => handleAttendanceTag(cls.subjectId, cls.date, 'cancelled')}
+                        title="Cancelled"
+                        className="p-1.5 rounded-lg bg-red-400/10 border border-red-400/20 text-red-400 hover:bg-red-400/20 transition-colors"
+                      ><X size={12} /></button>
+                      <button
+                        onClick={() => handleAttendanceTag(cls.subjectId, cls.date, 'rescheduled')}
+                        title="Rescheduled"
+                        className="p-1.5 rounded-lg bg-yellow-400/10 border border-yellow-400/20 text-yellow-400 hover:bg-yellow-400/20 transition-colors"
+                      ><RefreshCw size={12} /></button>
+                    </div>
+                  </div>
+                ))}
+                {pendingClasses.length > 5 && (
+                  <button onClick={() => navigate('/attendance')} className="w-full text-xs text-text-muted hover:text-white py-2 transition-colors">
+                    +{pendingClasses.length - 5} more — view all →
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Recent Doubts */}
           <div className="bg-bg-card border border-border rounded-2xl p-5">

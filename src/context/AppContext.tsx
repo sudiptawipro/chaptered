@@ -67,12 +67,30 @@ export interface Chapter {
   subChapters?: SubChapter[];
 }
 
+export type WeekDay = 'Mon' | 'Tue' | 'Wed' | 'Thu' | 'Fri' | 'Sat' | 'Sun';
+
+export interface ClassSchedule {
+  days: WeekDay[];   // which days of the week
+  time: string;      // e.g. "16:00"
+}
+
+export interface AttendanceLog {
+  id: string;
+  subjectId: string;
+  date: Date;           // the scheduled class date
+  status: 'attended' | 'cancelled' | 'rescheduled';
+  rescheduledTo?: Date; // if rescheduled, the new date
+  loggedAt: Date;
+}
+
 export interface Subject {
   id: string;
   name: string;
   colour: string;
   icon: string;
   chapters: Chapter[];
+  onlineClass?: boolean;          // toggle: does this subject have online classes?
+  classSchedule?: ClassSchedule;  // weekly schedule
 }
 
 export interface HomeworkItem {
@@ -196,6 +214,7 @@ export interface AppState {
   eventTypes: string[];
   doubtCategories: string[];
   blockTypes: string[];
+  attendanceLogs: AttendanceLog[];
 }
 
 // ==========================================
@@ -247,7 +266,10 @@ export type Action =
   | { type: 'UPDATE_TIMER_STATE'; payload: Partial<TimerState> }
   | { type: 'SAVE_MOCK_EXAM'; payload: MockExamResult }
   | { type: 'DELETE_MOCK_EXAM'; payload: string }
-  | { type: 'RESET_DATA' };
+  | { type: 'RESET_DATA' }
+  | { type: 'LOG_ATTENDANCE'; payload: AttendanceLog }
+  | { type: 'DELETE_ATTENDANCE'; payload: string }
+  | { type: 'UPDATE_ATTENDANCE'; payload: AttendanceLog };
 
 // ==========================================
 // REDUCER
@@ -285,7 +307,8 @@ export const initialState: AppState = {
   examTypes: ['Unit Test', 'Mid-Term', 'Final', 'Class Test', 'Project'],
   eventTypes: ['School Class', 'Online Tuition', 'Self-Study', 'Exam', 'Project Deadline', 'Personal Note'],
   doubtCategories: ['Concept', 'Formula', 'Problem-Solving', 'General', 'Other'],
-  blockTypes: ['Study', 'Homework', 'Reading', 'Project', 'Revision', 'Break', 'Sleep', 'Coffee', 'Play', 'TV', 'Music', 'Class']
+  blockTypes: ['Study', 'Homework', 'Reading', 'Project', 'Revision', 'Break', 'Sleep', 'Coffee', 'Play', 'TV', 'Music', 'Class'],
+  attendanceLogs: [],
 };
 
 function appReducer(state: AppState, action: Action): AppState {
@@ -306,6 +329,7 @@ function appReducer(state: AppState, action: Action): AppState {
         testMarks: parsed.testMarks || [],
         quizHistory: parsed.quizHistory || [],
         mockExamResults: parsed.mockExamResults || [],
+        attendanceLogs: parsed.attendanceLogs || [],
         examTypes: parsed.examTypes?.length ? parsed.examTypes : initialState.examTypes,
         eventTypes: parsed.eventTypes?.length ? parsed.eventTypes : initialState.eventTypes,
         doubtCategories: parsed.doubtCategories?.length ? parsed.doubtCategories : initialState.doubtCategories,
@@ -707,6 +731,15 @@ function appReducer(state: AppState, action: Action): AppState {
 
     case 'DELETE_MOCK_EXAM':
       return { ...state, mockExamResults: (state.mockExamResults || []).filter(m => m.id !== action.payload) };
+
+    case 'LOG_ATTENDANCE':
+      return { ...state, attendanceLogs: [...(state.attendanceLogs || []), action.payload] };
+
+    case 'UPDATE_ATTENDANCE':
+      return { ...state, attendanceLogs: (state.attendanceLogs || []).map(l => l.id === action.payload.id ? action.payload : l) };
+
+    case 'DELETE_ATTENDANCE':
+      return { ...state, attendanceLogs: (state.attendanceLogs || []).filter(l => l.id !== action.payload) };
 
     default:
       return state;
