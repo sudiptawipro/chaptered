@@ -788,6 +788,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [lastSaveTime, setLastSaveTime] = useState<Date | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const [hasCompletedInitialLoad, setHasCompletedInitialLoad] = useState(false);
+  const [hasUserMadeChange, setHasUserMadeChange] = useState(false);
 
   // ── HOOK 1: Load from localforage on mount ──────────────────────────────
   useEffect(() => {
@@ -888,9 +889,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
         // Serialize dates to ISO strings BEFORE storing — prevents {} corruption
         const serialized = serializeForStorage(state);
         await localforage.setItem(STORAGE_KEY, serialized);
-        // Also push to cloud if household code is set
+        // Only push to cloud if user has actually made a change (not just on load)
+        // This prevents an empty device from overwriting cloud data on first boot
         const code = getHouseholdCodeSync();
-        if (code) await pushToCloud(code, serialized);
+        if (code && hasUserMadeChange) await pushToCloud(code, serialized);
         setLastSaveTime(new Date());
       } catch (err) {
         console.error('Chaptered: Auto-save failed:', err);
@@ -899,7 +901,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }
     }, 300);
     return () => clearTimeout(timer);
-  }, [state, isLoaded, hasCompletedInitialLoad]);
+  }, [state, isLoaded, hasCompletedInitialLoad, hasUserMadeChange]);
 
   // ── HOOK 3: Warn before closing during save ─────────────────────────────
   useEffect(() => {
@@ -941,8 +943,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
     );
   }
 
+  // Wrap dispatch: mark hasUserMadeChange for any real user action (not load)
+  const userDispatch: React.Dispatch<Action> = (action) => {
+    if (action.type !== 'SET_INITIAL_STATE') setHasUserMadeChange(true);
+    dispatch(action);
+  };
+
   return (
-    <AppContext.Provider value={{ state, dispatch, isSaving, lastSaveTime, forceSave }}>
+    <AppContext.Provider value={{ state, dispatch: userDispatch, isSaving, lastSaveTime, forceSave }}>
       {children}
     </AppContext.Provider>
   );
