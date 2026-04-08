@@ -892,7 +892,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
         // Only push to cloud if user has actually made a change (not just on load)
         // This prevents an empty device from overwriting cloud data on first boot
         const code = getHouseholdCodeSync();
-        if (code && hasUserMadeChange) await pushToCloud(code, serialized);
+        // Only push if user made a change AND state has actual data (prevents empty overwrites)
+        const hasData = (serialized as any)?.subjects?.length > 0 || (serialized as any)?.calendarEvents?.length > 0 || (serialized as any)?.homework?.length > 0;
+        if (code && hasUserMadeChange && hasData) await pushToCloud(code, serialized);
         setLastSaveTime(new Date());
       } catch (err) {
         console.error('Chaptered: Auto-save failed:', err);

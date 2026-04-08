@@ -69,7 +69,7 @@ export default function Onboarding() {
     // Migration: push existing local data (with new profile) to cloud
     const { getHouseholdCode } = await import('../utils/cloudSync');
     const code = await getHouseholdCode();
-    if (code) {
+    if (code && state.subjects?.length > 0) {
       const merged = { ...state, profile: { ...state.profile, ...updatedProfile } };
       await pushToCloud(code, merged);
     }
