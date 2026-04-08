@@ -7,8 +7,6 @@ import {
   saveHouseholdCode,
   clearHouseholdCode,
   isValidCode,
-  pushToCloud,
-  getCloudUpdatedAt,
 } from '../utils/cloudSync';
 
 export default function Settings() {
@@ -92,16 +90,12 @@ export default function Settings() {
 
   // Cloud Sync state
   const [householdCode, setHouseholdCode] = useState<string | null>(null);
-  const [cloudUpdatedAt, setCloudUpdatedAt] = useState<string | null>(null);
   const [newCodeInput, setNewCodeInput] = useState('');
   const [codeError, setCodeError] = useState('');
   const [cloudBusy, setCloudBusy] = useState(false);
 
   useEffect(() => {
-    getHouseholdCode().then(code => {
-      setHouseholdCode(code);
-      if (code) getCloudUpdatedAt(code).then(setCloudUpdatedAt);
-    });
+    getHouseholdCode().then(code => setHouseholdCode(code));
   }, []);
 
   const handleSaveCode = async () => {
@@ -111,35 +105,15 @@ export default function Settings() {
     try {
       await saveHouseholdCode(code);
       showToast(`Connected: ${code} — reloading to sync…`);
-      // Reload so AppContext pulls fresh data from Supabase on boot
       setTimeout(() => window.location.reload(), 800);
     } catch { setCodeError('Network error. Try again.'); setCloudBusy(false); }
   };
 
-  const handleSyncNow = async () => {
-    if (!householdCode) { showToast('No household code set!'); return; }
-    setCloudBusy(true);
-    try {
-      const evtCount = state.calendarEvents?.length ?? 0;
-      const subCount = state.subjects?.length ?? 0;
-      const ok = await pushToCloud(householdCode, state);
-      if (ok) {
-        const updated = await getCloudUpdatedAt(householdCode);
-        setCloudUpdatedAt(updated);
-        showToast(`Synced! (${subCount} subjects, ${evtCount} events)`);
-      } else {
-        showToast(`Push returned false — Supabase rejected the write`);
-      }
-    } catch (err: any) {
-      showToast(`Sync error: ${err?.message || String(err)}`);
-    } finally { setCloudBusy(false); }
-  };
 
   const handleDisconnect = async () => {
     if (!window.confirm('Disconnect cloud sync? Data stays on this device.')) return;
     await clearHouseholdCode();
     setHouseholdCode(null);
-    setCloudUpdatedAt(null);
     showToast('Cloud sync disconnected.');
   };
 
@@ -684,7 +658,7 @@ export default function Settings() {
                          <div>
                            <div className="text-[10px] font-black uppercase tracking-widest text-text-muted mb-0.5">Household Code</div>
                            <div className="text-xl font-mono font-black text-white tracking-[0.25em]">{householdCode}</div>
-                           {cloudUpdatedAt && <div className="text-[10px] text-text-muted mt-1">Last synced: {new Date(cloudUpdatedAt).toLocaleString()}</div>}
+                           <div className="text-[10px] text-text-muted mt-1">Auto-syncs on every change</div>
                          </div>
                          <div className="flex flex-col gap-2 shrink-0">
                            <button onClick={handleDisconnect}
