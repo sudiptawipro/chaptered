@@ -669,12 +669,6 @@ export default function Settings() {
                      <span className="text-text-muted">Estimated Size:</span>
                      <span className="text-white font-mono">~{(JSON.stringify(state).length / 1024).toFixed(1)} KB</span>
                    </div>
-                   <button 
-                    onClick={() => { (window as any).forceChapteredSave?.(); showToast('Full Sync Complete!'); }} 
-                    className="w-full mt-2 py-2.5 bg-sky/10 hover:bg-sky/20 border border-sky/30 text-sky text-xs font-bold rounded-lg transition-colors"
-                   >
-                     Direct Sync to Disk
-                   </button>
                  </div>
 
                  {/* ── Cloud Sync ──────────────────────────────────────── */}
@@ -693,10 +687,6 @@ export default function Settings() {
                            {cloudUpdatedAt && <div className="text-[10px] text-text-muted mt-1">Last synced: {new Date(cloudUpdatedAt).toLocaleString()}</div>}
                          </div>
                          <div className="flex flex-col gap-2 shrink-0">
-                           <button onClick={handleSyncNow} disabled={cloudBusy}
-                             className="text-xs font-bold px-3 py-1.5 rounded-lg bg-accent/10 hover:bg-accent/20 border border-accent/30 text-accent transition-colors disabled:opacity-40">
-                             {cloudBusy ? '…' : 'Sync Now'}
-                           </button>
                            <button onClick={handleDisconnect}
                              className="text-xs font-bold px-3 py-1.5 rounded-lg bg-bg hover:bg-border border border-border text-text-muted transition-colors">
                              Disconnect
