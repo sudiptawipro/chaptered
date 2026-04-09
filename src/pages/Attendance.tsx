@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useAppContext } from '../context/AppContext';
-import type { AttendanceLog, WeekDay } from '../context/AppContext';
+import type { AttendanceLog } from '../context/AppContext';
 import { ChevronLeft, ChevronRight, Plus, Check, X, RefreshCw, Trash2 } from 'lucide-react';
 import SubjectIcon from '../components/SubjectIcon';
 

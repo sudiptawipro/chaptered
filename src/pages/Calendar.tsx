@@ -59,7 +59,6 @@ export default function Calendar() {
   );
 
   // Online classes scheduled for selected day
-  const WEEKDAY_JS: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
   const selectedDayName = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][selectedDate.getDay()];
   const selectedDayOnlineClasses = (state.subjects || [])
     .filter(s => s.onlineClass && Array.isArray(s.classSchedule) && s.classSchedule.some(e => e.day === selectedDayName))

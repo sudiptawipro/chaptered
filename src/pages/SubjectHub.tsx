@@ -539,7 +539,7 @@ export default function SubjectHub() {
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
                       <button
-                        onClick={() => dispatch({ type: 'RESOLVE_DOUBT', payload: d.id })}
+                        onClick={() => dispatch({ type: 'RESOLVE_DOUBT', payload: { doubtId: d.id } })}
                         className={`p-1.5 rounded-lg transition-all hover:scale-110 ${d.resolved ? 'text-green' : 'text-text-muted hover:text-green'}`}
                         title={d.resolved ? 'Resolved' : 'Mark resolved'}
                       >

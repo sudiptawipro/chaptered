@@ -128,7 +128,7 @@ export default function Sidebar() {
             }}>
               <Timer size={14} />
               <span className="text-xs font-bold truncate max-w-[140px]">
-                {daysToExam <= 0 ? 'Exam Today!' : `${daysToExam}d — ${nearestExam.title}`}
+                {daysToExam <= 0 ? 'Exam Today!' : `${daysToExam}d — ${nearestExam.name}`}
               </span>
             </div>
           )}
