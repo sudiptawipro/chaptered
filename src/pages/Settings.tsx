@@ -249,7 +249,7 @@ export default function Settings() {
                        {state.exams.sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime()).map(ex => {
                           const sub = state.subjects.find(s => s.id === ex.subjectId);
                           const syllabusChapters = sub?.chapters.filter(c => ex.linkedChapterIds.includes(c.id)) || [];
-                          const compChapters = syllabusChapters.filter(c => c.status === 'done').length;
+                          const compChapters = syllabusChapters.filter(c => c.examStatus === 'confident' || c.examStatus === 'revised').length;
                           const progress = syllabusChapters.length > 0 ? Math.round((compChapters / syllabusChapters.length) * 100) : 0;
                           return (
                             <div key={ex.id} className="flex items-center justify-between border-b border-border/50 pb-2 last:border-0 last:pb-0">

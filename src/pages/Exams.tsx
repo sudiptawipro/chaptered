@@ -233,7 +233,7 @@ export default function Exams() {
             const subtextCol = 'text-text-muted';
 
             const syllabusChapters = sub?.chapters.filter(c => exam.linkedChapterIds.includes(c.id)) || [];
-            const compChapters = syllabusChapters.filter(c => c.status === 'done').length;
+            const compChapters = syllabusChapters.filter(c => c.examStatus === 'confident' || c.examStatus === 'revised').length;
             const totalChapters = syllabusChapters.length;
             const progressPercent = totalChapters > 0 ? Math.round((compChapters / totalChapters) * 100) : 0;
 

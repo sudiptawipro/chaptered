@@ -1,9 +1,22 @@
-import type { AppState } from '../context/AppContext';
+import type { AppState, Chapter } from '../context/AppContext';
 import { addDays, subDays } from 'date-fns';
+
+// Helper: convert old-style chapter object to new dual-track format
+function ch(c: Omit<Chapter, 'schoolStatus' | 'onlineStatus' | 'examStatus'> & { status?: string }): Chapter {
+  const s = c.status as string | undefined;
+  return {
+    ...c,
+    schoolStatus: s === 'done' || s === 'in-progress' ? 'covered' : 'not-covered',
+    onlineStatus: 'not-covered',
+    examStatus: s === 'done' ? 'revised' : s === 'in-progress' ? 'learning' : 'not-started',
+    flaggedForRevision: false,
+  } as Chapter;
+}
 
 const today = new Date();
 const tomorrow = addDays(today, 1);
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const mockState: AppState = {
   profile: {
     name: '',
@@ -52,36 +65,36 @@ export const mockState: AppState = {
       colour: '#3B82F6',
       icon: '📐',
       chapters: [
-        { 
-          id: 'm1', subjectId: 'math-1', name: 'Algebra Basics', status: 'done', source: 'school', notes: [], 
+        ch({
+          id: 'm1', subjectId: 'math-1', name: 'Algebra Basics', status: 'done', source: 'school', notes: [],
           flashcards: [
             { id: 'f1', chapterId: 'm1', question: 'What is a linear equation?', answer: 'An equation of the form ax + b = 0 where a ≠ 0', difficulty: 'easy', timesCorrect: 0, timesWrong: 0 },
             { id: 'f2', chapterId: 'm1', question: 'What is the quadratic formula?', answer: 'x = (-b ± √(b²-4ac)) / 2a', difficulty: 'medium', timesCorrect: 0, timesWrong: 0 },
             { id: 'f3', chapterId: 'm1', question: 'What does the discriminant tell us?', answer: 'b²-4ac > 0: two roots, = 0: one root, < 0: no real roots', difficulty: 'medium', timesCorrect: 0, timesWrong: 0 },
             { id: 'f4', chapterId: 'm1', question: 'What is the degree of a linear equation?', answer: 'Degree 1 — the highest power of x is 1', difficulty: 'easy', timesCorrect: 0, timesWrong: 0 },
             { id: 'f5', chapterId: 'm1', question: 'Solve: 2x + 6 = 0', answer: 'x = -3 (subtract 6, then divide by 2)', difficulty: 'easy', timesCorrect: 0, timesWrong: 0 }
-          ], 
-          formulas: [] 
-        },
-        { id: 'm2', subjectId: 'math-1', name: 'Linear Equations', status: 'done', source: 'both', notes: [], flashcards: [], formulas: [] },
-        { 
-          id: 'm3', subjectId: 'math-1', name: 'Quadratic Equations', status: 'in-progress', source: 'both', 
-          notes: [{ id: 'n1', chapterId: 'm3', type: 'text', content: 'Remember the quadratic formula: x = [-b ± √(b² - 4ac)] / 2a', createdAt: new Date() }], 
+          ],
+          formulas: []
+        }),
+        ch({ id: 'm2', subjectId: 'math-1', name: 'Linear Equations', status: 'done', source: 'both', notes: [], flashcards: [], formulas: [] }),
+        ch({
+          id: 'm3', subjectId: 'math-1', name: 'Quadratic Equations', status: 'in-progress', source: 'both',
+          notes: [{ id: 'n1', chapterId: 'm3', type: 'text', content: 'Remember the quadratic formula: x = [-b ± √(b² - 4ac)] / 2a', createdAt: new Date() }],
           flashcards: [
             { id: 'fx1', chapterId: 'm3', question: 'What is the standard form of a quadratic equation?', answer: 'ax² + bx + c = 0', difficulty: 'easy', timesCorrect: 2, timesWrong: 0 },
             { id: 'fx2', chapterId: 'm3', question: 'What does the discriminant (b² - 4ac) indicate?', answer: 'It indicates the nature of the roots (real/imaginary, distinct/equal)', difficulty: 'medium', timesCorrect: 1, timesWrong: 1 }
-          ], 
+          ],
           formulas: [
             { id: 'fm1', chapterId: 'm3', title: 'Quadratic Formula', content: 'x = [-b ± √(b² - 4ac)] / 2a', isFavourite: true }
           ]
-        },
-        { id: 'm4', subjectId: 'math-1', name: 'Coordinate Geometry', status: 'not-started', source: 'school', notes: [], flashcards: [], formulas: [] },
-        { id: 'm5', subjectId: 'math-1', name: 'Statistics', status: 'done', source: 'online', notes: [], flashcards: [], formulas: [] },
-        { id: 'm6', subjectId: 'math-1', name: 'Probability', status: 'in-progress', source: 'school', notes: [], flashcards: [], formulas: [] },
-        { id: 'm7', subjectId: 'math-1', name: 'Trigonometry', status: 'not-started', source: 'school', notes: [], flashcards: [], formulas: [] },
-        { id: 'm8', subjectId: 'math-1', name: 'Geometry', status: 'not-started', source: 'school', notes: [], flashcards: [], formulas: [] },
-        { id: 'm9', subjectId: 'math-1', name: 'Mensuration', status: 'not-started', source: 'school', notes: [], flashcards: [], formulas: [] },
-        { id: 'm10', subjectId: 'math-1', name: 'Number System', status: 'done', source: 'school', notes: [], flashcards: [], formulas: [] },
+        }),
+        ch({ id: 'm4', subjectId: 'math-1', name: 'Coordinate Geometry', status: 'not-started', source: 'school', notes: [], flashcards: [], formulas: [] }),
+        ch({ id: 'm5', subjectId: 'math-1', name: 'Statistics', status: 'done', source: 'online', notes: [], flashcards: [], formulas: [] }),
+        ch({ id: 'm6', subjectId: 'math-1', name: 'Probability', status: 'in-progress', source: 'school', notes: [], flashcards: [], formulas: [] }),
+        ch({ id: 'm7', subjectId: 'math-1', name: 'Trigonometry', status: 'not-started', source: 'school', notes: [], flashcards: [], formulas: [] }),
+        ch({ id: 'm8', subjectId: 'math-1', name: 'Geometry', status: 'not-started', source: 'school', notes: [], flashcards: [], formulas: [] }),
+        ch({ id: 'm9', subjectId: 'math-1', name: 'Mensuration', status: 'not-started', source: 'school', notes: [], flashcards: [], formulas: [] }),
+        ch({ id: 'm10', subjectId: 'math-1', name: 'Number System', status: 'done', source: 'school', notes: [], flashcards: [], formulas: [] }),
       ]
     },
     {
@@ -90,15 +103,12 @@ export const mockState: AppState = {
       colour: '#10B981',
       icon: '🔬',
       chapters: [
-        { 
-          id: 's1', subjectId: 'sci-1', name: 'Light and Optics', status: 'in-progress', source: 'both', 
-          notes: [], flashcards: [], formulas: []
-        },
-        { id: 's2', subjectId: 'sci-1', name: 'Forces and Motion', status: 'done', source: 'school', notes: [], flashcards: [], formulas: [] },
-        { id: 's3', subjectId: 'sci-1', name: 'Electricity', status: 'done', source: 'online', notes: [], flashcards: [], formulas: [] },
-        { id: 's4', subjectId: 'sci-1', name: 'Chemical Reactions', status: 'not-started', source: 'school', notes: [], flashcards: [], formulas: [] },
-        { id: 's5', subjectId: 'sci-1', name: 'Acids and Bases', status: 'done', source: 'both', notes: [], flashcards: [], formulas: [] },
-        ...Array.from({ length: 7 }).map((_, i) => ({ id: `s${i+6}`, subjectId: 'sci-1', name: `Science Chapter ${i+6}`, status: 'not-started' as const, source: 'school' as const, notes: [], flashcards: [], formulas: [] }))
+        ch({ id: 's1', subjectId: 'sci-1', name: 'Light and Optics', status: 'in-progress', source: 'both', notes: [], flashcards: [], formulas: [] }),
+        ch({ id: 's2', subjectId: 'sci-1', name: 'Forces and Motion', status: 'done', source: 'school', notes: [], flashcards: [], formulas: [] }),
+        ch({ id: 's3', subjectId: 'sci-1', name: 'Electricity', status: 'done', source: 'online', notes: [], flashcards: [], formulas: [] }),
+        ch({ id: 's4', subjectId: 'sci-1', name: 'Chemical Reactions', status: 'not-started', source: 'school', notes: [], flashcards: [], formulas: [] }),
+        ch({ id: 's5', subjectId: 'sci-1', name: 'Acids and Bases', status: 'done', source: 'both', notes: [], flashcards: [], formulas: [] }),
+        ...Array.from({ length: 7 }).map((_, i) => ch({ id: `s${i+6}`, subjectId: 'sci-1', name: `Science Chapter ${i+6}`, status: 'not-started', source: 'school', notes: [], flashcards: [], formulas: [] }))
       ]
     },
     {
@@ -107,14 +117,14 @@ export const mockState: AppState = {
       colour: '#8B5CF6',
       icon: '📚',
       chapters: [
-        { id: 'e1', subjectId: 'eng-1', name: 'Poetry Analysis', status: 'done', source: 'school', notes: [], flashcards: [], formulas: [] },
-        { id: 'e2', subjectId: 'eng-1', name: 'Creative Writing', status: 'done', source: 'school', notes: [], flashcards: [], formulas: [] },
-        { id: 'e3', subjectId: 'eng-1', name: 'Macbeth', status: 'done', source: 'school', notes: [], flashcards: [], formulas: [] },
-        { id: 'e4', subjectId: 'eng-1', name: 'Grammar & Syntax', status: 'done', source: 'online', notes: [], flashcards: [], formulas: [] },
-        { id: 'e5', subjectId: 'eng-1', name: 'Reading Comprehension', status: 'done', source: 'school', notes: [], flashcards: [], formulas: [] },
-        { id: 'e6', subjectId: 'eng-1', name: 'Essay Structure', status: 'done', source: 'school', notes: [], flashcards: [], formulas: [] },
-        { id: 'e7', subjectId: 'eng-1', name: 'Literature Review', status: 'done', source: 'both', notes: [], flashcards: [], formulas: [] },
-        { id: 'e8', subjectId: 'eng-1', name: 'Public Speaking', status: 'not-started', source: 'school', notes: [], flashcards: [], formulas: [] },
+        ch({ id: 'e1', subjectId: 'eng-1', name: 'Poetry Analysis', status: 'done', source: 'school', notes: [], flashcards: [], formulas: [] }),
+        ch({ id: 'e2', subjectId: 'eng-1', name: 'Creative Writing', status: 'done', source: 'school', notes: [], flashcards: [], formulas: [] }),
+        ch({ id: 'e3', subjectId: 'eng-1', name: 'Macbeth', status: 'done', source: 'school', notes: [], flashcards: [], formulas: [] }),
+        ch({ id: 'e4', subjectId: 'eng-1', name: 'Grammar & Syntax', status: 'done', source: 'online', notes: [], flashcards: [], formulas: [] }),
+        ch({ id: 'e5', subjectId: 'eng-1', name: 'Reading Comprehension', status: 'done', source: 'school', notes: [], flashcards: [], formulas: [] }),
+        ch({ id: 'e6', subjectId: 'eng-1', name: 'Essay Structure', status: 'done', source: 'school', notes: [], flashcards: [], formulas: [] }),
+        ch({ id: 'e7', subjectId: 'eng-1', name: 'Literature Review', status: 'done', source: 'both', notes: [], flashcards: [], formulas: [] }),
+        ch({ id: 'e8', subjectId: 'eng-1', name: 'Public Speaking', status: 'not-started', source: 'school', notes: [], flashcards: [], formulas: [] }),
       ]
     },
     {
@@ -123,12 +133,12 @@ export const mockState: AppState = {
       colour: '#F59E0B',
       icon: '🏛️',
       chapters: [
-        { id: 'h1', subjectId: 'hist-1', name: 'The French Revolution', status: 'done', source: 'school', notes: [], flashcards: [], formulas: [] },
-        { id: 'h2', subjectId: 'hist-1', name: 'Industrial Revolution', status: 'done', source: 'school', notes: [], flashcards: [], formulas: [] },
-        { id: 'h3', subjectId: 'hist-1', name: 'World War 1', status: 'in-progress', source: 'school', notes: [], flashcards: [], formulas: [] },
-        { id: 'h4', subjectId: 'hist-1', name: 'World War 2', status: 'not-started', source: 'school', notes: [], flashcards: [], formulas: [] },
-        { id: 'h5', subjectId: 'hist-1', name: 'Cold War', status: 'not-started', source: 'school', notes: [], flashcards: [], formulas: [] },
-        { id: 'h6', subjectId: 'hist-1', name: 'Modern India', status: 'not-started', source: 'school', notes: [], flashcards: [], formulas: [] },
+        ch({ id: 'h1', subjectId: 'hist-1', name: 'The French Revolution', status: 'done', source: 'school', notes: [], flashcards: [], formulas: [] }),
+        ch({ id: 'h2', subjectId: 'hist-1', name: 'Industrial Revolution', status: 'done', source: 'school', notes: [], flashcards: [], formulas: [] }),
+        ch({ id: 'h3', subjectId: 'hist-1', name: 'World War 1', status: 'in-progress', source: 'school', notes: [], flashcards: [], formulas: [] }),
+        ch({ id: 'h4', subjectId: 'hist-1', name: 'World War 2', status: 'not-started', source: 'school', notes: [], flashcards: [], formulas: [] }),
+        ch({ id: 'h5', subjectId: 'hist-1', name: 'Cold War', status: 'not-started', source: 'school', notes: [], flashcards: [], formulas: [] }),
+        ch({ id: 'h6', subjectId: 'hist-1', name: 'Modern India', status: 'not-started', source: 'school', notes: [], flashcards: [], formulas: [] }),
       ]
     },
     {
@@ -137,12 +147,12 @@ export const mockState: AppState = {
       colour: '#14B8A6',
       icon: '🌍',
       chapters: [
-        { id: 'g1', subjectId: 'geo-1', name: 'Physical Geography', status: 'done', source: 'school', notes: [], flashcards: [], formulas: [] },
-        { id: 'g2', subjectId: 'geo-1', name: 'Climate', status: 'done', source: 'school', notes: [], flashcards: [], formulas: [] },
-        { id: 'g3', subjectId: 'geo-1', name: 'Plate Tectonics', status: 'done', source: 'school', notes: [], flashcards: [], formulas: [] },
-        { id: 'g4', subjectId: 'geo-1', name: 'Natural Vegetation', status: 'in-progress', source: 'school', notes: [], flashcards: [], formulas: [] },
-        { id: 'g5', subjectId: 'geo-1', name: 'Resources', status: 'not-started', source: 'school', notes: [], flashcards: [], formulas: [] },
-        { id: 'g6', subjectId: 'geo-1', name: 'Population', status: 'not-started', source: 'school', notes: [], flashcards: [], formulas: [] },
+        ch({ id: 'g1', subjectId: 'geo-1', name: 'Physical Geography', status: 'done', source: 'school', notes: [], flashcards: [], formulas: [] }),
+        ch({ id: 'g2', subjectId: 'geo-1', name: 'Climate', status: 'done', source: 'school', notes: [], flashcards: [], formulas: [] }),
+        ch({ id: 'g3', subjectId: 'geo-1', name: 'Plate Tectonics', status: 'done', source: 'school', notes: [], flashcards: [], formulas: [] }),
+        ch({ id: 'g4', subjectId: 'geo-1', name: 'Natural Vegetation', status: 'in-progress', source: 'school', notes: [], flashcards: [], formulas: [] }),
+        ch({ id: 'g5', subjectId: 'geo-1', name: 'Resources', status: 'not-started', source: 'school', notes: [], flashcards: [], formulas: [] }),
+        ch({ id: 'g6', subjectId: 'geo-1', name: 'Population', status: 'not-started', source: 'school', notes: [], flashcards: [], formulas: [] }),
       ]
     },
     {
@@ -151,14 +161,14 @@ export const mockState: AppState = {
       colour: '#EF4444',
       icon: 'अ',
       chapters: [
-        { id: 'hi1', subjectId: 'hin-1', name: 'Grammar', status: 'done', source: 'school', notes: [], flashcards: [], formulas: [] },
-        { id: 'hi2', subjectId: 'hin-1', name: 'Literature Part 1', status: 'done', source: 'school', notes: [], flashcards: [], formulas: [] },
-        { id: 'hi3', subjectId: 'hin-1', name: 'Poetry', status: 'done', source: 'school', notes: [], flashcards: [], formulas: [] },
-        { id: 'hi4', subjectId: 'hin-1', name: 'Letter Writing', status: 'done', source: 'school', notes: [], flashcards: [], formulas: [] },
-        { id: 'hi5', subjectId: 'hin-1', name: 'Essay Writing', status: 'done', source: 'school', notes: [], flashcards: [], formulas: [] },
-        { id: 'hi6', subjectId: 'hin-1', name: 'Literature Part 2', status: 'not-started', source: 'school', notes: [], flashcards: [], formulas: [] },
-        { id: 'hi7', subjectId: 'hin-1', name: 'Comprehension', status: 'in-progress', source: 'school', notes: [], flashcards: [], formulas: [] },
-        { id: 'hi8', subjectId: 'hin-1', name: 'Vocabulary', status: 'not-started', source: 'school', notes: [], flashcards: [], formulas: [] },
+        ch({ id: 'hi1', subjectId: 'hin-1', name: 'Grammar', status: 'done', source: 'school', notes: [], flashcards: [], formulas: [] }),
+        ch({ id: 'hi2', subjectId: 'hin-1', name: 'Literature Part 1', status: 'done', source: 'school', notes: [], flashcards: [], formulas: [] }),
+        ch({ id: 'hi3', subjectId: 'hin-1', name: 'Poetry', status: 'done', source: 'school', notes: [], flashcards: [], formulas: [] }),
+        ch({ id: 'hi4', subjectId: 'hin-1', name: 'Letter Writing', status: 'done', source: 'school', notes: [], flashcards: [], formulas: [] }),
+        ch({ id: 'hi5', subjectId: 'hin-1', name: 'Essay Writing', status: 'done', source: 'school', notes: [], flashcards: [], formulas: [] }),
+        ch({ id: 'hi6', subjectId: 'hin-1', name: 'Literature Part 2', status: 'not-started', source: 'school', notes: [], flashcards: [], formulas: [] }),
+        ch({ id: 'hi7', subjectId: 'hin-1', name: 'Comprehension', status: 'in-progress', source: 'school', notes: [], flashcards: [], formulas: [] }),
+        ch({ id: 'hi8', subjectId: 'hin-1', name: 'Vocabulary', status: 'not-started', source: 'school', notes: [], flashcards: [], formulas: [] }),
       ]
     }
   ],

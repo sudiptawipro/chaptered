@@ -95,9 +95,10 @@ export default function ChapterDetail() {
   }
 
   const cycleStatus = () => {
-    const order = ['not-started', 'in-progress', 'done'] as const;
-    const next = order[(order.indexOf(chapter.status) + 1) % 3];
-    dispatch({ type: 'UPDATE_CHAPTER_STATUS', payload: { subjectId: subject.id, chapterId: chapter.id, status: next }});
+    const order = ['not-started', 'learning', 'revised', 'confident'] as const;
+    const cur = chapter.examStatus || 'not-started';
+    const next = order[(order.indexOf(cur as typeof order[number]) + 1) % order.length];
+    dispatch({ type: 'UPDATE_CHAPTER_TRACK', payload: { subjectId: subject.id, chapterId: chapter.id, field: 'examStatus', value: next }});
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -232,13 +233,16 @@ export default function ChapterDetail() {
           <button
             onClick={cycleStatus}
             className={`px-6 py-3 rounded-xl font-bold transition-all hover:scale-105 flex items-center gap-2 shrink-0 ${
-              chapter.status === 'done' ? 'bg-green/10 border border-green text-green shadow-[0_0_20px_rgba(61,237,122,0.15)]' :
-              chapter.status === 'in-progress' ? 'bg-gold/10 border border-gold text-gold' :
+              chapter.examStatus === 'confident' ? 'bg-green/10 border border-green text-green shadow-[0_0_20px_rgba(61,237,122,0.15)]' :
+              chapter.examStatus === 'revised'   ? 'bg-gold/10 border border-gold text-gold' :
+              chapter.examStatus === 'learning'  ? 'bg-sky/10 border border-sky text-sky' :
               'glass-card text-text-muted'
             }`}
           >
-            {chapter.status === 'done' && <Check size={18} />}
-            {chapter.status === 'done' ? 'Completed' : chapter.status === 'in-progress' ? '⏳ In Progress' : '○ Not Started'}
+            {chapter.examStatus === 'confident' && <Check size={18} />}
+            {chapter.examStatus === 'confident' ? 'Confident' :
+             chapter.examStatus === 'revised'   ? '✓ Revised' :
+             chapter.examStatus === 'learning'  ? '⏳ Learning' : '○ Not Started'}
           </button>
         </div>
       </div>

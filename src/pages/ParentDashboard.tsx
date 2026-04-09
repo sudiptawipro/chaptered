@@ -112,8 +112,8 @@ export default function ParentDashboard() {
   // ── Subject progress ──────────────────────────────────────────────────────
   const subjectStats = (state.subjects || []).map(sub => {
     const total = sub.chapters.length;
-    const done = sub.chapters.filter(c => c.status === 'done').length;
-    const inProg = sub.chapters.filter(c => c.status === 'in-progress').length;
+    const done = sub.chapters.filter(c => c.examStatus === 'confident' || c.examStatus === 'revised').length;
+    const inProg = sub.chapters.filter(c => c.examStatus === 'learning').length;
     return {
       ...sub,
       total,

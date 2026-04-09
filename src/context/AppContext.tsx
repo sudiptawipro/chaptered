@@ -55,12 +55,20 @@ export interface SubChapter {
   notes: Note[];
 }
 
+export type ChapterExamStatus = 'not-started' | 'learning' | 'revised' | 'confident';
+
 export interface Chapter {
   id: string;
   subjectId: string;
   name: string;
-  status: 'not-started' | 'in-progress' | 'done';
-  source: 'school' | 'online' | 'both';
+  // Legacy — kept for migration only, prefer the three fields below
+  status?: 'not-started' | 'in-progress' | 'done';
+  // Dual-track status
+  schoolStatus: 'not-covered' | 'covered';
+  onlineStatus: 'not-covered' | 'covered';
+  examStatus: ChapterExamStatus;
+  flaggedForRevision?: boolean;
+  source?: 'school' | 'online' | 'both';
   notes: Note[];
   flashcards: Flashcard[];
   formulas: Formula[];
@@ -69,9 +77,10 @@ export interface Chapter {
 
 export type WeekDay = 'Mon' | 'Tue' | 'Wed' | 'Thu' | 'Fri' | 'Sat' | 'Sun';
 
-export interface ClassSchedule {
-  days: WeekDay[];   // which days of the week
-  time: string;      // e.g. "16:00"
+// Each day can have its own time (e.g. Mon 7pm, Wed 8pm)
+export interface ClassScheduleEntry {
+  day: WeekDay;
+  time: string; // "HH:MM" 24h
 }
 
 export interface AttendanceLog {
@@ -89,8 +98,9 @@ export interface Subject {
   colour: string;
   icon: string;
   chapters: Chapter[];
-  onlineClass?: boolean;          // toggle: does this subject have online classes?
-  classSchedule?: ClassSchedule;  // weekly schedule
+  onlineClass?: boolean;
+  classSchedule?: ClassScheduleEntry[];  // per-day schedule
+  scheduleStartDate?: Date;              // when this schedule started (for pending calc)
 }
 
 export interface HomeworkItem {
@@ -140,6 +150,10 @@ export interface UserProfile {
   targetCurriculum: string;
   targetGrade: string;
   avatarUrl?: string;
+  backgroundImage?: string;   // base64 data URL for custom background
+  backgroundOpacity?: number; // 0.1–0.6, default 0.25
+  parentPin?: string;         // 4-digit PIN for parent mode, default '0000'
+  weeklyStudyGoal?: number;   // hours per week, e.g. 14
 }
 
 export interface TestMark {
@@ -228,7 +242,8 @@ export type Action =
   | { type: 'DELETE_SUBJECT'; payload: string }
   | { type: 'ADD_CHAPTER'; payload: Chapter }
   | { type: 'DELETE_CHAPTER'; payload: { subjectId: string, chapterId: string } }
-  | { type: 'UPDATE_CHAPTER_STATUS'; payload: { chapterId: string, subjectId: string, status: Chapter['status'] } }
+  | { type: 'UPDATE_CHAPTER_STATUS'; payload: { chapterId: string; subjectId: string; status?: 'not-started' | 'in-progress' | 'done' } }
+  | { type: 'UPDATE_CHAPTER_TRACK'; payload: { subjectId: string; chapterId: string; field: 'schoolStatus' | 'onlineStatus' | 'examStatus' | 'flaggedForRevision'; value: string | boolean } }
   | { type: 'ADD_HOMEWORK'; payload: HomeworkItem }
   | { type: 'EDIT_HOMEWORK'; payload: HomeworkItem }
   | { type: 'DELETE_HOMEWORK'; payload: string }
@@ -311,6 +326,41 @@ export const initialState: AppState = {
   attendanceLogs: [],
 };
 
+// ==========================================
+// MIGRATION HELPERS
+// ==========================================
+
+// Migrate old chapter (single status) → new dual-track chapter
+function migrateChapter(ch: any): Chapter {
+  const old = ch.status as string | undefined;
+  return {
+    ...ch,
+    schoolStatus: ch.schoolStatus ?? (old === 'done' || old === 'in-progress' ? 'covered' : 'not-covered'),
+    onlineStatus: ch.onlineStatus ?? 'not-covered',
+    examStatus: ch.examStatus ?? (old === 'done' ? 'revised' : old === 'in-progress' ? 'learning' : 'not-started'),
+    flaggedForRevision: ch.flaggedForRevision ?? false,
+    subChapters: (ch.subChapters || []),
+  };
+}
+
+// Migrate old ClassSchedule { days, time } → ClassScheduleEntry[]
+function migrateClassSchedule(schedule: any): ClassScheduleEntry[] | undefined {
+  if (!schedule) return undefined;
+  if (Array.isArray(schedule)) return schedule as ClassScheduleEntry[]; // already new format
+  if (schedule.days && Array.isArray(schedule.days)) {
+    return (schedule.days as WeekDay[]).map(day => ({ day, time: schedule.time || '16:00' }));
+  }
+  return undefined;
+}
+
+function migrateSubject(sub: any): Subject {
+  return {
+    ...sub,
+    classSchedule: migrateClassSchedule(sub.classSchedule),
+    chapters: (sub.chapters || []).map(migrateChapter),
+  };
+}
+
 export function appReducer(state: AppState, action: Action): AppState {
   switch (action.type) {
     case 'SET_INITIAL_STATE': {
@@ -319,7 +369,8 @@ export function appReducer(state: AppState, action: Action): AppState {
         ...initialState,
         ...parsed,
         profile: { ...initialState.profile, ...(parsed.profile || {}) },
-        subjects: parsed.subjects || [],
+        // Run migrations on subjects (chapter dual-track + schedule format)
+        subjects: (parsed.subjects || []).map(migrateSubject),
         homework: parsed.homework || [],
         exams: parsed.exams || [],
         calendarEvents: parsed.calendarEvents || [],
@@ -362,6 +413,23 @@ export function appReducer(state: AppState, action: Action): AppState {
               chapters: sub.chapters.map(chap =>
                 chap.id === action.payload.chapterId
                   ? { ...chap, status: action.payload.status }
+                  : chap
+              )
+            }
+            : sub
+        )
+      };
+
+    case 'UPDATE_CHAPTER_TRACK':
+      return {
+        ...state,
+        subjects: state.subjects.map(sub =>
+          sub.id === action.payload.subjectId
+            ? {
+              ...sub,
+              chapters: sub.chapters.map(chap =>
+                chap.id === action.payload.chapterId
+                  ? { ...chap, [action.payload.field]: action.payload.value }
                   : chap
               )
             }
@@ -859,7 +927,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
             ...initialState,
             ...parsed,
             profile: { ...initialState.profile, ...(parsed.profile || {}) },
-            subjects: parsed.subjects || [],
+            subjects: (parsed.subjects || []).map(migrateSubject),
             homework: parsed.homework || [],
             exams: parsed.exams || [],
             calendarEvents: (parsed.calendarEvents || []).filter((e: any) => {

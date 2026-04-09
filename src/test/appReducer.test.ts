@@ -24,7 +24,10 @@ function makeChapter(overrides: Partial<Chapter> = {}): Chapter {
     id: 'c1',
     subjectId: 's1',
     name: 'Algebra',
-    status: 'not-started',
+    schoolStatus: 'not-covered',
+    onlineStatus: 'not-covered',
+    examStatus: 'not-started',
+    flaggedForRevision: false,
     source: 'school',
     notes: [],
     flashcards: [],
@@ -251,13 +254,51 @@ describe('ADD_CHAPTER', () => {
 });
 
 describe('UPDATE_CHAPTER_STATUS', () => {
-  it('updates chapter status', () => {
+  it('updates legacy chapter status', () => {
     const state = stateWithSubjectAndChapter();
     const next = appReducer(state, {
       type: 'UPDATE_CHAPTER_STATUS',
       payload: { subjectId: 's1', chapterId: 'c1', status: 'done' },
     });
     expect(next.subjects[0].chapters[0].status).toBe('done');
+  });
+});
+
+describe('UPDATE_CHAPTER_TRACK', () => {
+  it('updates examStatus', () => {
+    const state = stateWithSubjectAndChapter();
+    const next = appReducer(state, {
+      type: 'UPDATE_CHAPTER_TRACK',
+      payload: { subjectId: 's1', chapterId: 'c1', field: 'examStatus', value: 'confident' },
+    });
+    expect(next.subjects[0].chapters[0].examStatus).toBe('confident');
+  });
+
+  it('updates schoolStatus', () => {
+    const state = stateWithSubjectAndChapter();
+    const next = appReducer(state, {
+      type: 'UPDATE_CHAPTER_TRACK',
+      payload: { subjectId: 's1', chapterId: 'c1', field: 'schoolStatus', value: 'covered' },
+    });
+    expect(next.subjects[0].chapters[0].schoolStatus).toBe('covered');
+  });
+
+  it('updates onlineStatus', () => {
+    const state = stateWithSubjectAndChapter();
+    const next = appReducer(state, {
+      type: 'UPDATE_CHAPTER_TRACK',
+      payload: { subjectId: 's1', chapterId: 'c1', field: 'onlineStatus', value: 'covered' },
+    });
+    expect(next.subjects[0].chapters[0].onlineStatus).toBe('covered');
+  });
+
+  it('updates flaggedForRevision', () => {
+    const state = stateWithSubjectAndChapter();
+    const next = appReducer(state, {
+      type: 'UPDATE_CHAPTER_TRACK',
+      payload: { subjectId: 's1', chapterId: 'c1', field: 'flaggedForRevision', value: true },
+    });
+    expect(next.subjects[0].chapters[0].flaggedForRevision).toBe(true);
   });
 });
 

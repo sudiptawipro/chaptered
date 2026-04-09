@@ -8,7 +8,7 @@ import ConfirmModal from '../components/ConfirmModal';
 import ColorPicker from '../components/ColorPicker';
 import EmojiPicker from '../components/EmojiPicker';
 import SubjectIcon from '../components/SubjectIcon';
-import type { Subject, WeekDay } from '../context/AppContext';
+import type { Subject, WeekDay, ClassScheduleEntry } from '../context/AppContext';
 
 export default function Subjects() {
   const { state, dispatch } = useAppContext();
@@ -35,12 +35,22 @@ export default function Subjects() {
   const [subColor, setSubColor] = useState('#3B82F6');
   const [subIcon, setSubIcon] = useState('GraduationCap');
   const [subOnlineClass, setSubOnlineClass] = useState(false);
-  const [subDays, setSubDays] = useState<WeekDay[]>([]);
-  const [subTime, setSubTime] = useState('16:00');
+  const [subSchedule, setSubSchedule] = useState<ClassScheduleEntry[]>([]);
+  const [subScheduleStartDate, setSubScheduleStartDate] = useState('');
 
   const ALL_DAYS: WeekDay[] = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-  const toggleDay = (day: WeekDay) =>
-    setSubDays(prev => prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]);
+
+  const toggleDay = (day: WeekDay) => {
+    setSubSchedule(prev => {
+      const exists = prev.find(e => e.day === day);
+      if (exists) return prev.filter(e => e.day !== day);
+      const next = [...prev, { day, time: '16:00' }];
+      return next.sort((a, b) => ALL_DAYS.indexOf(a.day) - ALL_DAYS.indexOf(b.day));
+    });
+  };
+
+  const setDayTime = (day: WeekDay, time: string) =>
+    setSubSchedule(prev => prev.map(e => e.day === day ? { ...e, time } : e));
 
   // Chapter Modal States
   const [isAddChapterOpen, setIsAddChapterOpen] = useState(false);
@@ -53,8 +63,8 @@ export default function Subjects() {
     setSubColor('#3B82F6');
     setSubIcon('GraduationCap');
     setSubOnlineClass(false);
-    setSubDays([]);
-    setSubTime('16:00');
+    setSubSchedule([]);
+    setSubScheduleStartDate('');
     setIsSubjectModalOpen(true);
   };
 
@@ -64,16 +74,22 @@ export default function Subjects() {
     setSubColor(sub.colour);
     setSubIcon(sub.icon);
     setSubOnlineClass(sub.onlineClass || false);
-    setSubDays(sub.classSchedule?.days || []);
-    setSubTime(sub.classSchedule?.time || '16:00');
+    setSubSchedule(Array.isArray(sub.classSchedule) ? sub.classSchedule : []);
+    setSubScheduleStartDate(
+      sub.scheduleStartDate ? new Date(sub.scheduleStartDate).toISOString().split('T')[0] : ''
+    );
     setIsSubjectModalOpen(true);
   };
 
   const handleSaveSubject = () => {
     if (!subName.trim()) return;
-    const scheduleData = subOnlineClass && subDays.length > 0
-      ? { onlineClass: true, classSchedule: { days: subDays, time: subTime } }
-      : { onlineClass: false, classSchedule: undefined };
+    const scheduleData = subOnlineClass && subSchedule.length > 0
+      ? {
+          onlineClass: true,
+          classSchedule: subSchedule,
+          scheduleStartDate: subScheduleStartDate ? new Date(subScheduleStartDate) : undefined,
+        }
+      : { onlineClass: false, classSchedule: undefined, scheduleStartDate: undefined };
 
     if (editingSubject) {
       dispatch({
@@ -113,7 +129,10 @@ export default function Subjects() {
         subjectId: targetSubjectId,
         name: newChapName,
         source: 'school',
-        status: 'not-started',
+        schoolStatus: 'not-covered',
+        onlineStatus: 'not-covered',
+        examStatus: 'not-started',
+        flaggedForRevision: false,
         notes: [],
         flashcards: [],
         formulas: []
@@ -147,7 +166,7 @@ export default function Subjects() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {state.subjects.map(sub => {
           const isExpanded = expandedSubjectId === sub.id;
-          const doneChaps = sub.chapters.filter(c => c.status === 'done').length;
+          const doneChaps = sub.chapters.filter(c => c.examStatus === 'confident' || c.examStatus === 'revised').length;
           const subProgress = sub.chapters.length > 0 ? (doneChaps / sub.chapters.length) * 100 : 0;
 
           return (
@@ -219,7 +238,7 @@ export default function Subjects() {
                           key={chap.id} 
                           onClick={() => navigate(`/subjects/${sub.id}/chapter/${chap.id}`)}
                           className="flex items-center justify-between p-3.5 rounded-xl border border-border bg-bg-card hover:bg-bg-raised cursor-pointer transition-all group"
-                          style={{ borderLeftWidth: '3px', borderLeftColor: chap.status === 'done' ? '#3DED7A' : chap.status === 'in-progress' ? '#FBBF24' : '#1E1E1E' }}
+                          style={{ borderLeftWidth: '3px', borderLeftColor: chap.examStatus === 'confident' ? '#3DED7A' : chap.examStatus === 'revised' ? '#FBBF24' : chap.examStatus === 'learning' ? '#67E8F9' : '#1E1E1E' }}
                         >
                           <div className="flex items-center gap-3 flex-1 min-w-0">
                             <div className="text-sm font-bold text-white truncate">{chap.name}</div>
@@ -309,29 +328,56 @@ export default function Subjects() {
             </div>
 
             {subOnlineClass && (
-              <div className="space-y-3 bg-bg rounded-xl p-4 border border-border">
+              <div className="space-y-4 bg-bg rounded-xl p-4 border border-border">
+                {/* Day pills */}
                 <div>
                   <label className="text-xs font-black text-text-muted uppercase tracking-widest mb-2 block">Class Days</label>
                   <div className="flex gap-1.5 flex-wrap">
-                    {ALL_DAYS.map(day => (
-                      <button
-                        key={day}
-                        onClick={() => toggleDay(day)}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${subDays.includes(day) ? 'bg-accent text-white' : 'bg-bg-raised border border-border text-text-muted hover:text-white'}`}
-                      >
-                        {day}
-                      </button>
-                    ))}
+                    {ALL_DAYS.map(day => {
+                      const selected = subSchedule.some(e => e.day === day);
+                      return (
+                        <button
+                          key={day}
+                          onClick={() => toggleDay(day)}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${selected ? 'bg-accent text-white' : 'bg-bg-raised border border-border text-text-muted hover:text-white'}`}
+                        >
+                          {day}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
+
+                {/* Per-day time inputs */}
+                {subSchedule.length > 0 && (
+                  <div>
+                    <label className="text-xs font-black text-text-muted uppercase tracking-widest mb-2 block">Class Times</label>
+                    <div className="space-y-2">
+                      {subSchedule.map(entry => (
+                        <div key={entry.day} className="flex items-center gap-3">
+                          <span className="text-xs font-black text-white w-8">{entry.day}</span>
+                          <input
+                            type="time"
+                            value={entry.time}
+                            onChange={e => setDayTime(entry.day, e.target.value)}
+                            className="bg-bg-raised border border-border rounded-lg px-3 py-1.5 text-white text-sm font-mono outline-none focus:border-accent transition-colors"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Schedule start date */}
                 <div>
-                  <label className="text-xs font-black text-text-muted uppercase tracking-widest mb-2 block">Class Time</label>
+                  <label className="text-xs font-black text-text-muted uppercase tracking-widest mb-2 block">Schedule Start Date</label>
                   <input
-                    type="time"
-                    value={subTime}
-                    onChange={e => setSubTime(e.target.value)}
-                    className="bg-bg-raised border border-border rounded-lg px-3 py-2 text-white text-sm font-mono outline-none focus:border-accent transition-colors"
+                    type="date"
+                    value={subScheduleStartDate}
+                    onChange={e => setSubScheduleStartDate(e.target.value)}
+                    className="bg-bg-raised border border-border rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-accent transition-colors"
                   />
+                  <p className="text-[10px] text-text-muted mt-1">Used to calculate pending classes accurately</p>
                 </div>
               </div>
             )}

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useAppContext } from '../context/AppContext';
 import type { WeekDay } from '../context/AppContext';
 import { format, differenceInDays, isSameDay } from 'date-fns';
@@ -35,6 +36,9 @@ function MoodIcon({ mood, size = 22 }: { mood: string | null; size?: number }) {
 export default function Dashboard() {
   const { state, dispatch, isSaving, lastSaveTime, forceSave } = useAppContext();
   const navigate = useNavigate();
+  const [attendanceConfirm, setAttendanceConfirm] = useState<{
+    subjectId: string; subjectName: string; date: Date;
+  } | null>(null);
 
   const today = new Date();
   const dateStr = format(today, "EEEE, d MMMM yyyy");
@@ -88,23 +92,37 @@ export default function Dashboard() {
   };
 
   // ── Pending attendance classes ────────────────────────────────────────
-  // Generate all scheduled class dates from each online subject's start up to today,
-  // then subtract ones that already have an attendance log.
+  // Generate all scheduled class dates from each online subject's scheduleStartDate
+  // (or 60-day fallback) up to today, subtract already-logged entries.
   const WEEKDAY_JS: Record<WeekDay, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
 
   const pendingClasses: { subjectId: string; subjectName: string; colour: string; date: Date }[] = [];
-  const onlineSubjects = (state.subjects || []).filter(s => s.onlineClass && s.classSchedule?.days?.length);
+  const onlineSubjects = (state.subjects || []).filter(s => s.onlineClass && Array.isArray(s.classSchedule) && s.classSchedule.length > 0);
   const todayMidnight = new Date(today); todayMidnight.setHours(0, 0, 0, 0);
-  const LOOKBACK_DAYS = 60; // only look back 60 days to keep list manageable
+  const MAX_LOOKBACK_DAYS = 60;
 
   for (const sub of onlineSubjects) {
-    const days = sub.classSchedule!.days;
-    for (let i = LOOKBACK_DAYS; i >= 0; i--) {
-      const d = new Date(todayMidnight);
-      d.setDate(d.getDate() - i);
+    const entries = sub.classSchedule!;
+    const scheduledDays = new Set(entries.map(e => e.day));
+
+    // Determine lookback start: use scheduleStartDate if set, else 60 days
+    let startDate: Date;
+    if (sub.scheduleStartDate) {
+      startDate = new Date(sub.scheduleStartDate);
+      startDate.setHours(0, 0, 0, 0);
+    } else {
+      startDate = new Date(todayMidnight);
+      startDate.setDate(startDate.getDate() - MAX_LOOKBACK_DAYS);
+    }
+
+    const msPerDay = 86400000;
+    const dayCount = Math.floor((todayMidnight.getTime() - startDate.getTime()) / msPerDay);
+
+    for (let i = 0; i <= dayCount; i++) {
+      const d = new Date(startDate.getTime() + i * msPerDay);
       const jsDay = d.getDay();
       const dayName = (Object.keys(WEEKDAY_JS) as WeekDay[]).find(k => WEEKDAY_JS[k] === jsDay);
-      if (!dayName || !days.includes(dayName)) continue;
+      if (!dayName || !scheduledDays.has(dayName)) continue;
       const dStr = d.toISOString().split('T')[0];
       const alreadyLogged = (state.attendanceLogs || []).some(
         l => l.subjectId === sub.id && new Date(l.date).toISOString().split('T')[0] === dStr
@@ -114,18 +132,17 @@ export default function Dashboard() {
       }
     }
   }
-  // Sort oldest first
   pendingClasses.sort((a, b) => a.date.getTime() - b.date.getTime());
 
   const handleAttendanceTag = (subjectId: string, date: Date, status: 'attended' | 'cancelled' | 'rescheduled') => {
-    const log = {
-      id: `att-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-      subjectId,
-      date,
-      status,
-      loggedAt: new Date(),
-    };
-    dispatch({ type: 'LOG_ATTENDANCE', payload: log });
+    dispatch({
+      type: 'LOG_ATTENDANCE',
+      payload: {
+        id: `att-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        subjectId, date, status, loggedAt: new Date(),
+      },
+    });
+    setAttendanceConfirm(null);
   };
 
   // ── Greeting icon ─────────────────────────────────────────────────────
@@ -400,7 +417,7 @@ export default function Dashboard() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {(state.subjects || []).slice(0, 6).map(sub => {
-              const doneChaps = (sub.chapters || []).filter(c => c.status === 'done').length;
+              const doneChaps = (sub.chapters || []).filter(c => c.examStatus === 'confident' || c.examStatus === 'revised').length;
               const subProgress = sub.chapters.length > 0 ? (doneChaps / sub.chapters.length) * 100 : 0;
               const examsForSub = (state.exams || []).filter(e => e.subjectId === sub.id && new Date(e.date) >= today);
               const nextExam = examsForSub.sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime())[0];
@@ -543,23 +560,12 @@ export default function Dashboard() {
                       <div className="text-sm font-bold text-white truncate">{cls.subjectName}</div>
                       <div className="text-[11px] text-text-muted">{format(cls.date, 'd MMM yyyy')}</div>
                     </div>
-                    <div className="flex gap-1.5 shrink-0">
-                      <button
-                        onClick={() => handleAttendanceTag(cls.subjectId, cls.date, 'attended')}
-                        title="Attended"
-                        className="p-1.5 rounded-lg bg-green/10 border border-green/20 text-green hover:bg-green/20 transition-colors"
-                      ><Check size={12} /></button>
-                      <button
-                        onClick={() => handleAttendanceTag(cls.subjectId, cls.date, 'cancelled')}
-                        title="Cancelled"
-                        className="p-1.5 rounded-lg bg-red-400/10 border border-red-400/20 text-red-400 hover:bg-red-400/20 transition-colors"
-                      ><X size={12} /></button>
-                      <button
-                        onClick={() => handleAttendanceTag(cls.subjectId, cls.date, 'rescheduled')}
-                        title="Rescheduled"
-                        className="p-1.5 rounded-lg bg-yellow-400/10 border border-yellow-400/20 text-yellow-400 hover:bg-yellow-400/20 transition-colors"
-                      ><RefreshCw size={12} /></button>
-                    </div>
+                    <button
+                      onClick={() => setAttendanceConfirm({ subjectId: cls.subjectId, subjectName: cls.subjectName, date: cls.date })}
+                      className="text-xs font-bold px-3 py-1.5 rounded-lg bg-yellow-400/10 border border-yellow-400/20 text-yellow-400 hover:bg-yellow-400/20 transition-colors shrink-0"
+                    >
+                      Tag →
+                    </button>
                   </div>
                 ))}
                 {pendingClasses.length > 5 && (
@@ -567,6 +573,41 @@ export default function Dashboard() {
                     +{pendingClasses.length - 5} more — view all →
                   </button>
                 )}
+              </div>
+            </div>
+          )}
+
+          {/* Attendance confirmation popup */}
+          {attendanceConfirm && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setAttendanceConfirm(null)}>
+              <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+              <div className="relative bg-bg-card border border-border rounded-2xl p-6 w-full max-w-sm shadow-2xl" onClick={e => e.stopPropagation()}>
+                <div className="text-base font-bold text-white mb-1">{attendanceConfirm.subjectName}</div>
+                <div className="text-sm text-text-muted mb-5">{format(attendanceConfirm.date, 'd MMMM yyyy')}</div>
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    onClick={() => handleAttendanceTag(attendanceConfirm.subjectId, attendanceConfirm.date, 'attended')}
+                    className="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-green/10 border border-green/20 text-green hover:bg-green/20 transition-colors"
+                  >
+                    <Check size={18} />
+                    <span className="text-[10px] font-black uppercase tracking-widest">Attended</span>
+                  </button>
+                  <button
+                    onClick={() => handleAttendanceTag(attendanceConfirm.subjectId, attendanceConfirm.date, 'cancelled')}
+                    className="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-red-400/10 border border-red-400/20 text-red-400 hover:bg-red-400/20 transition-colors"
+                  >
+                    <X size={18} />
+                    <span className="text-[10px] font-black uppercase tracking-widest">Cancelled</span>
+                  </button>
+                  <button
+                    onClick={() => handleAttendanceTag(attendanceConfirm.subjectId, attendanceConfirm.date, 'rescheduled')}
+                    className="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-yellow-400/10 border border-yellow-400/20 text-yellow-400 hover:bg-yellow-400/20 transition-colors"
+                  >
+                    <RefreshCw size={18} />
+                    <span className="text-[10px] font-black uppercase tracking-widest">Rescheduled</span>
+                  </button>
+                </div>
+                <button onClick={() => setAttendanceConfirm(null)} className="w-full mt-3 text-xs text-text-muted hover:text-white transition-colors py-1">Cancel</button>
               </div>
             </div>
           )}
