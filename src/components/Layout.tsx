@@ -1,9 +1,11 @@
 import type { ReactNode } from 'react';
 import Sidebar from './Sidebar';
+import TopBar from './TopBar';
 import OmniSearch from './OmniSearch';
 import QuickAdd from './QuickAdd';
 import { ToastProvider } from './Toast';
 import { ThemeProvider, useTheme } from '../context/ThemeContext';
+import { useAppContext } from '../context/AppContext';
 
 interface LayoutProps {
   children: ReactNode;
@@ -11,9 +13,26 @@ interface LayoutProps {
 
 function LayoutInner({ children }: LayoutProps) {
   const { theme } = useTheme();
+  const { state } = useAppContext();
+  const bgImage = state.profile?.backgroundImage;
+  const bgOpacity = state.profile?.backgroundOpacity ?? 0.15;
 
   return (
     <div className="flex min-h-screen bg-bg text-text font-sans relative">
+
+      {/* ── Optional user background image ────────────────────────────── */}
+      {bgImage && (
+        <div
+          className="fixed inset-0 z-0 pointer-events-none"
+          style={{
+            backgroundImage: `url(${bgImage})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            opacity: bgOpacity,
+          }}
+          aria-hidden="true"
+        />
+      )}
 
       {/* ── Liquid Glass Background Orbs ──────────────────────────────────
           Fixed layer at z-0. These colored blobs are what glass card
@@ -91,6 +110,7 @@ function LayoutInner({ children }: LayoutProps) {
       {/* ── App Shell ───────────────────────────────────────────────────── */}
       <Sidebar />
       <main className="flex-1 ml-[240px] p-8 relative z-10">
+        <TopBar />
         {children}
       </main>
       <OmniSearch />

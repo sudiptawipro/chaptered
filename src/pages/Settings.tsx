@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { User, Database, Sliders, X, Plus, Lock, TrendingUp, ShieldAlert, Zap, BarChart2, Palette, Sun, Moon, Volume2, VolumeX, Key, Eye, EyeOff, ChevronDown } from 'lucide-react';
+import { User, Database, Sliders, X, Plus, Lock, TrendingUp, ShieldAlert, Zap, BarChart2, Palette, Sun, Moon, Volume2, VolumeX, Key, Eye, EyeOff, ChevronDown, ImageIcon, Trash2 } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 import { useTheme } from '../context/ThemeContext';
 import {
@@ -312,7 +312,7 @@ export default function Settings() {
                 </div>
 
                 {/* Sound toggle */}
-                <div>
+                <div className="mb-8">
                   <label className="block text-xs font-black text-text-muted uppercase tracking-widest mb-3">Sound Effects</label>
                   <div className="flex items-center justify-between p-4 bg-bg rounded-xl border border-border">
                     <div className="flex items-center gap-3">
@@ -330,6 +330,9 @@ export default function Settings() {
                     </button>
                   </div>
                 </div>
+
+                {/* Background Image */}
+                <BackgroundImageSection showToast={showToast} />
               </div>
 
               {/* Preview */}
@@ -748,6 +751,106 @@ export default function Settings() {
 
         </div>
 
+      </div>
+    </div>
+  );
+}
+
+// ── Background Image Section ─────────────────────────────────────────────────
+function BackgroundImageSection({ showToast }: { showToast: (msg: string) => void }) {
+  const { state, dispatch } = useAppContext();
+  const bgInputRef = useRef<HTMLInputElement>(null);
+  const currentBg = state.profile?.backgroundImage;
+  const currentOpacity = state.profile?.backgroundOpacity ?? 0.15;
+
+  const handleBgChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) { showToast('Image too large — max 5 MB'); return; }
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      dispatch({ type: 'UPDATE_PROFILE', payload: { backgroundImage: ev.target?.result as string } });
+      showToast('Background updated!');
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemoveBg = () => {
+    dispatch({ type: 'UPDATE_PROFILE', payload: { backgroundImage: undefined } });
+    showToast('Background removed.');
+  };
+
+  return (
+    <div>
+      <label className="block text-xs font-black text-text-muted uppercase tracking-widest mb-3">Background Image</label>
+      <div className="rounded-xl border border-border overflow-hidden" style={{ background: 'rgba(255,255,255,0.03)' }}>
+        {/* Preview strip */}
+        <div
+          className="w-full h-28 relative flex items-center justify-center"
+          style={{
+            backgroundImage: currentBg ? `url(${currentBg})` : undefined,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            background: currentBg ? undefined : 'rgba(255,255,255,0.04)',
+          }}
+        >
+          {!currentBg && (
+            <div className="flex flex-col items-center gap-2 text-text-muted opacity-50">
+              <ImageIcon size={28} />
+              <span className="text-xs font-bold">No background set</span>
+            </div>
+          )}
+          {currentBg && (
+            <div className="absolute inset-0" style={{ background: `rgba(0,0,0,${1 - currentOpacity})` }} />
+          )}
+        </div>
+
+        <div className="p-4 space-y-4">
+          <div className="flex gap-2">
+            <input ref={bgInputRef} type="file" accept="image/*" className="hidden" onChange={handleBgChange} />
+            <button
+              onClick={() => bgInputRef.current?.click()}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all hover:scale-[1.02]"
+              style={{ background: 'rgba(255,107,157,0.15)', border: '1px solid rgba(255,107,157,0.3)', color: 'var(--accent)' }}
+            >
+              <ImageIcon size={15} />
+              {currentBg ? 'Change Photo' : 'Choose Photo'}
+            </button>
+            {currentBg && (
+              <button
+                onClick={handleRemoveBg}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all hover:scale-[1.02] text-coral"
+                style={{ background: 'rgba(255,107,107,0.1)', border: '1px solid rgba(255,107,107,0.25)' }}
+              >
+                <Trash2 size={15} />
+                Remove
+              </button>
+            )}
+          </div>
+
+          {currentBg && (
+            <div>
+              <label className="block text-xs font-bold text-text-muted mb-2">
+                Overlay opacity — {Math.round(currentOpacity * 100)}% visible
+              </label>
+              <input
+                type="range"
+                min="0.05"
+                max="0.6"
+                step="0.05"
+                value={currentOpacity}
+                onChange={e => dispatch({ type: 'UPDATE_PROFILE', payload: { backgroundOpacity: parseFloat(e.target.value) } })}
+                className="w-full accent-accent"
+              />
+              <div className="flex justify-between text-[10px] text-text-muted mt-1">
+                <span>Subtle</span>
+                <span>Vibrant</span>
+              </div>
+            </div>
+          )}
+
+          <p className="text-[11px] text-text-muted">Pick your favourite photo — it'll show as a soft background across the app. JPG / PNG up to 5 MB.</p>
+        </div>
       </div>
     </div>
   );

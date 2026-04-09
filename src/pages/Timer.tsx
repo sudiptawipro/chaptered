@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAppContext } from '../context/AppContext';
-import { Play, Pause, RotateCcw, Save, Music, Volume2, VolumeX, CheckCircle2 } from 'lucide-react';
+import { Play, Pause, RotateCcw, Save, Music, Volume2, VolumeX, CheckCircle2, Smile, Meh, Frown } from 'lucide-react';
+import { playSound } from '../hooks/useSound';
 import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { format, startOfWeek, endOfWeek, eachDayOfInterval, isWithinInterval, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 
@@ -41,6 +42,7 @@ export default function Timer() {
   const [isMuted, setIsMuted] = useState(false);
   const [period, setPeriod] = useState<PeriodType>('week');
   const [sessionSaved, setSessionSaved] = useState(false);
+  const [showMoodPrompt, setShowMoodPrompt] = useState(false);
 
   // Compute initial timeLeft from persisted context
   const computeTimeLeft = () => {
@@ -149,6 +151,7 @@ export default function Timer() {
     setSessionSaved(true);
     setTimeout(() => setSessionSaved(false), 3000);
     resetTimer();
+    setShowMoodPrompt(true);
   };
 
   // Analytics: build chart data from real studySessions
@@ -386,6 +389,44 @@ export default function Timer() {
           </div>
         </div>
       </div>
+
+      {/* Mood prompt overlay — shown after saving a session */}
+      {showMoodPrompt && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setShowMoodPrompt(false)}>
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+          <div
+            className="relative rounded-2xl p-8 w-full max-w-sm shadow-2xl text-center"
+            style={{ background: 'rgba(22,20,35,0.97)', border: '1px solid rgba(255,255,255,0.12)' }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="text-4xl mb-2">🎉</div>
+            <h2 className="text-xl font-black text-white mb-1">Session logged!</h2>
+            <p className="text-text-muted text-sm mb-6">How are you feeling after that session?</p>
+            <div className="flex justify-center gap-6">
+              {([
+                { mood: 'happy'   as const, icon: <Smile  size={32} />, color: 'var(--green)', bg: 'rgba(61,237,122,0.12)',  border: 'rgba(61,237,122,0.3)',  label: 'Great!' },
+                { mood: 'neutral' as const, icon: <Meh    size={32} />, color: 'var(--gold)',  bg: 'rgba(251,191,36,0.12)', border: 'rgba(251,191,36,0.3)',  label: 'Okay'   },
+                { mood: 'stressed'as const, icon: <Frown  size={32} />, color: 'var(--coral)', bg: 'rgba(255,107,107,0.12)',border: 'rgba(255,107,107,0.3)', label: 'Tired'  },
+              ]).map(({ mood, icon, color, bg, border, label }) => (
+                <button
+                  key={mood}
+                  onClick={() => {
+                    dispatch({ type: 'LOG_MOOD', payload: { date: new Date(), mood } });
+                    playSound('mood');
+                    setShowMoodPrompt(false);
+                  }}
+                  className="flex flex-col items-center gap-2 p-4 rounded-2xl transition-all hover:scale-110"
+                  style={{ color, background: bg, border: `1px solid ${border}` }}
+                >
+                  {icon}
+                  <span className="text-xs font-black uppercase tracking-widest">{label}</span>
+                </button>
+              ))}
+            </div>
+            <button onClick={() => setShowMoodPrompt(false)} className="mt-4 text-xs text-text-muted hover:text-white transition-colors">Skip</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

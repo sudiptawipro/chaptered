@@ -1,9 +1,92 @@
 import { useState, useMemo } from 'react';
 import { useAppContext } from '../context/AppContext';
-import type { AttendanceLog } from '../context/AppContext';
+import type { AttendanceLog, WeekDay } from '../context/AppContext';
 import { ChevronLeft, ChevronRight, Plus, Check, X, RefreshCw, Trash2 } from 'lucide-react';
 import SubjectIcon from '../components/SubjectIcon';
 
+
+// ── Calendar Grid ─────────────────────────────────────────────────────────────
+function CalendarGrid({
+  year, month, logs, subjects, selectedSubjectId,
+}: {
+  year: number; month: number;
+  logs: AttendanceLog[];
+  subjects: ReturnType<typeof useAppContext>['state']['subjects'];
+  selectedSubjectId: string | null;
+}) {
+  const firstDay = new Date(year, month, 1);
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  // 0 = Sun, pad so grid starts on Mon
+  const startPad = (firstDay.getDay() + 6) % 7; // Mon=0
+  const today = new Date();
+
+  const filteredLogs = selectedSubjectId ? logs.filter(l => l.subjectId === selectedSubjectId) : logs;
+
+  // Build a map: dateStr -> logs[]
+  const logsByDay: Record<string, AttendanceLog[]> = {};
+  for (const log of filteredLogs) {
+    const key = new Date(log.date).toISOString().split('T')[0];
+    if (!logsByDay[key]) logsByDay[key] = [];
+    logsByDay[key].push(log);
+  }
+
+  const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  const cells = Array.from({ length: startPad + daysInMonth }, (_, i) => i < startPad ? null : i - startPad + 1);
+
+  const statusDot = (status: AttendanceLog['status']) =>
+    status === 'attended' ? '#3DED7A' : status === 'cancelled' ? '#FF6B6B' : '#FBBF24';
+
+  return (
+    <div className="rounded-2xl p-4" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+      <div className="grid grid-cols-7 gap-0.5 mb-1">
+        {DAY_LABELS.map(d => (
+          <div key={d} className="text-center text-[9px] font-black uppercase tracking-widest text-text-muted py-1">{d}</div>
+        ))}
+      </div>
+      <div className="grid grid-cols-7 gap-0.5">
+        {cells.map((day, idx) => {
+          if (!day) return <div key={`pad-${idx}`} />;
+          const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+          const dayLogs = logsByDay[dateStr] || [];
+          const isToday = today.getFullYear() === year && today.getMonth() === month && today.getDate() === day;
+          const isFuture = new Date(dateStr) > today;
+
+          return (
+            <div
+              key={day}
+              className={`rounded-lg p-1 min-h-[44px] flex flex-col items-center transition-all ${isToday ? 'ring-1 ring-accent' : ''}`}
+              style={{ background: dayLogs.length > 0 ? 'rgba(255,255,255,0.04)' : 'transparent' }}
+            >
+              <span className={`text-[10px] font-bold mb-1 ${isToday ? 'text-accent' : isFuture ? 'text-text-muted/40' : 'text-text-muted'}`}>{day}</span>
+              <div className="flex flex-wrap gap-0.5 justify-center">
+                {dayLogs.map(log => (
+                  <div
+                    key={log.id}
+                    className="w-2 h-2 rounded-full"
+                    style={{ background: statusDot(log.status) }}
+                    title={`${subjects.find(s => s.id === log.subjectId)?.name} — ${log.status}`}
+                  />
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <div className="flex items-center gap-4 mt-3 px-1">
+        {[
+          { color: '#3DED7A', label: 'Attended' },
+          { color: '#FF6B6B', label: 'Cancelled' },
+          { color: '#FBBF24', label: 'Rescheduled' },
+        ].map(item => (
+          <div key={item.label} className="flex items-center gap-1.5">
+            <div className="w-2 h-2 rounded-full" style={{ background: item.color }} />
+            <span className="text-[10px] text-text-muted font-bold">{item.label}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 const STATUS_CONFIG = {
   attended:    { label: 'Attended',    color: 'text-green',   bg: 'bg-green/10 border-green/30',   icon: Check },
@@ -149,6 +232,15 @@ export default function Attendance() {
           </button>
         ))}
       </div>
+
+      {/* Calendar Grid */}
+      <CalendarGrid
+        year={viewYear}
+        month={viewMonth}
+        logs={monthLogs}
+        subjects={state.subjects}
+        selectedSubjectId={selectedSubjectId}
+      />
 
       {/* Log List */}
       <div className="bg-bg-card border border-border rounded-2xl overflow-hidden">

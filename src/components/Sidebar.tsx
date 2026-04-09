@@ -2,10 +2,9 @@ import { useState } from 'react';
 import { Link, NavLink } from 'react-router-dom';
 import {
   Home, BookOpen, Calendar as CalendarIcon,
-  CalendarDays, CheckSquare, MessageCircleQuestion,
-  Timer, GraduationCap, Settings,
-  Search, Flame, Smile, Meh, Frown, Library, ExternalLink, Eye,
-  BarChart2, Wand2, Sparkles, ClipboardCheck
+  CheckSquare,
+  Timer, Settings,
+  Search, Flame, Smile, Meh, Frown, Library, ExternalLink, ClipboardCheck
 } from 'lucide-react';
 import ChapteredLogo from './ChapteredLogo';
 import { useAppContext, initialState } from '../context/AppContext';
@@ -57,6 +56,15 @@ export default function Sidebar() {
     }
     return 'text-text-muted hover:scale-110';
   };
+
+  const navItems = [
+    { name: 'Dashboard', path: '/', icon: Home },
+    { name: 'Subjects', path: '/subjects', icon: BookOpen },
+    { name: 'Calendar', path: '/calendar', icon: CalendarIcon },
+    { name: 'Homework', path: '/homework', icon: CheckSquare, badge: overdueCount },
+    { name: 'Attendance', path: '/attendance', icon: ClipboardCheck },
+    { name: 'Focus Timer', path: '/timer', icon: Timer },
+  ];
 
   return (
     <aside className="w-[240px] bg-bg-sidebar h-screen fixed left-0 top-0 flex flex-col z-40"
@@ -120,7 +128,7 @@ export default function Sidebar() {
             }}>
               <Timer size={14} />
               <span className="text-xs font-bold truncate max-w-[140px]">
-                {daysToExam <= 0 ? 'Exam Today!' : `${daysToExam} days left`}
+                {daysToExam <= 0 ? 'Exam Today!' : `${daysToExam}d — ${nearestExam.title}`}
               </span>
             </div>
           )}
@@ -130,20 +138,7 @@ export default function Sidebar() {
       {/* Navigation */}
       <div className="flex-1 overflow-y-auto py-4 px-3 flex flex-col gap-0.5 no-scrollbar">
         <div className="text-[10px] font-bold text-text-muted mb-2 px-3 tracking-widest uppercase opacity-60">Menu</div>
-        {[
-          { name: 'Dashboard', path: '/', icon: Home },
-          { name: 'Subjects', path: '/subjects', icon: BookOpen },
-          { name: 'Planner', path: '/planner', icon: CalendarDays },
-          { name: 'Calendar', path: '/calendar', icon: CalendarIcon },
-          { name: 'Homework', path: '/homework', icon: CheckSquare, badge: overdueCount },
-          { name: 'Attendance', path: '/attendance', icon: ClipboardCheck },
-          { name: 'Doubt Bank', path: '/doubts', icon: MessageCircleQuestion },
-          { name: 'Focus Timer', path: '/timer', icon: Timer },
-          { name: 'Exams', path: '/exams', icon: GraduationCap },
-          { name: 'Analytics', path: '/analytics', icon: BarChart2 },
-          { name: 'Revision Plan', path: '/revision', icon: Wand2 },
-          { name: 'Mock Exam', path: '/mock-exam', icon: Sparkles },
-        ].map((item) => (
+        {navItems.map((item) => (
           <NavLink
             key={item.path}
             to={item.path}
@@ -170,36 +165,17 @@ export default function Sidebar() {
         ))}
 
         {/* External */}
-        <a
-          href="https://notebooklm.google.com/"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all text-text-muted hover:text-white hover:bg-white/5"
-        >
-          <Library size={18} />
-          Notebook LM
-          <ExternalLink size={13} className="ml-auto opacity-40" />
-        </a>
-
-        {/* Parent View — separate section */}
         <div className="mt-3 pt-3" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-          <div className="text-[10px] font-bold text-text-muted mb-2 px-3 tracking-widest uppercase opacity-60">For Parents</div>
-          <NavLink
-            to="/parent"
-            className={({ isActive }) =>
-              `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${
-                isActive ? 'text-sky' : 'text-text-muted hover:text-white hover:bg-white/5'
-              }`
-            }
-            style={({ isActive }) => isActive ? {
-              background: 'rgba(103,232,249,0.10)',
-              border: '1px solid rgba(103,232,249,0.18)',
-              boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06)',
-            } : {}}
+          <a
+            href="https://notebooklm.google.com/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all text-text-muted hover:text-white hover:bg-white/5"
           >
-            <Eye size={18} />
-            Parent View
-          </NavLink>
+            <Library size={18} />
+            Notebook LM
+            <ExternalLink size={13} className="ml-auto opacity-40" />
+          </a>
         </div>
       </div>
 

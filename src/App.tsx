@@ -19,6 +19,7 @@ import RevisionPlanner from './pages/RevisionPlanner';
 import MockExam from './pages/MockExam';
 import SubChapterDetail from './pages/SubChapterDetail';
 import Attendance from './pages/Attendance';
+import SubjectHub from './pages/SubjectHub';
 
 function AppInner() {
   const { state } = useAppContext();
@@ -31,6 +32,7 @@ function AppInner() {
         <Routes>
           <Route path="/" element={<Dashboard />} />
           <Route path="/subjects" element={<Subjects />} />
+          <Route path="/subjects/:subjectId" element={<SubjectHub />} />
           <Route path="/subjects/:subjectId/chapter/:chapterId" element={<ChapterDetail />} />
           <Route path="/subjects/:subjectId/chapter/:chapterId/subchapter/:subChapterId" element={<SubChapterDetail />} />
           <Route path="/planner" element={<Planner />} />

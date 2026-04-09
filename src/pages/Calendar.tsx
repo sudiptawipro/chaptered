@@ -1,10 +1,9 @@
 import { useState } from 'react';
 import { useAppContext } from '../context/AppContext';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths } from 'date-fns';
-import { ChevronLeft, ChevronRight, Plus, X, Calendar as CalendarIcon, CalendarClock } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, X, Calendar as CalendarIcon } from 'lucide-react';
 import SubjectBadge from '../components/SubjectBadge';
 import Modal from '../components/Modal';
-import WeeklyScheduleModal from '../components/WeeklyScheduleModal';
 import ColorPicker from '../components/ColorPicker';
 import ConfirmModal from '../components/ConfirmModal';
 
@@ -14,7 +13,6 @@ export default function Calendar() {
   const [selectedDate, setSelectedDate] = useState(new Date());
 
   const [isAddEventOpen, setIsAddEventOpen] = useState(false);
-  const [isWeeklyScheduleOpen, setIsWeeklyScheduleOpen] = useState(false);
   const [isColorPickerOpen, setIsColorPickerOpen] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   
@@ -55,6 +53,18 @@ export default function Calendar() {
   const selectedDayEvents = getDayEvents(selectedDate);
   const selectedDayExams = getDayExams(selectedDate);
 
+  // Homework due on selected day
+  const selectedDayHw = (state.homework || []).filter(h =>
+    h.dueDate && isSameDay(new Date(h.dueDate), selectedDate)
+  );
+
+  // Online classes scheduled for selected day
+  const WEEKDAY_JS: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+  const selectedDayName = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][selectedDate.getDay()];
+  const selectedDayOnlineClasses = (state.subjects || [])
+    .filter(s => s.onlineClass && Array.isArray(s.classSchedule) && s.classSchedule.some(e => e.day === selectedDayName))
+    .map(s => ({ subject: s, entry: s.classSchedule!.find(e => e.day === selectedDayName)! }));
+
   const handleAddEvent = () => {
     if (!evName.trim()) return;
     dispatch({
@@ -92,19 +102,6 @@ export default function Calendar() {
             {format(currentDate, 'MMMM yyyy')}
           </h1>
           <div className="flex items-center gap-3">
-            <button
-              onClick={() => setIsWeeklyScheduleOpen(true)}
-              className="hidden md:flex items-center gap-2 px-5 py-2.5 text-sm font-bold text-white rounded-xl transition-all hover:scale-105 whitespace-nowrap"
-              style={{
-                background: 'rgba(103,232,249,0.12)',
-                border: '1px solid rgba(103,232,249,0.3)',
-                color: 'var(--sky)',
-                boxShadow: '0 0 20px rgba(103,232,249,0.1)',
-              }}
-            >
-              <CalendarClock size={16} />
-              Setup Weekly Schedule
-            </button>
             <div className="flex items-center gap-1 bg-bg p-1.5 rounded-xl border border-border">
               <button onClick={() => setCurrentDate(subMonths(currentDate, 1))} className="p-2 hover:bg-bg-raised rounded-lg hover:text-white transition-colors"><ChevronLeft size={20} /></button>
               <button onClick={() => setCurrentDate(addMonths(currentDate, 1))} className="p-2 hover:bg-bg-raised rounded-lg hover:text-white transition-colors"><ChevronRight size={20} /></button>
@@ -176,8 +173,46 @@ export default function Calendar() {
         </h2>
 
         <div className="flex-1 overflow-y-auto pr-2 space-y-4 no-scrollbar">
-          {selectedDayExams.length === 0 && selectedDayEvents.length === 0 && (
-            <div className="text-text-muted text-sm text-center py-16 border border-dashed border-border rounded-xl">No events scheduled.</div>
+          {selectedDayExams.length === 0 && selectedDayEvents.length === 0 && selectedDayHw.length === 0 && selectedDayOnlineClasses.length === 0 && (
+            <div className="text-text-muted text-sm text-center py-16 border border-dashed border-border rounded-xl">Nothing scheduled.</div>
+          )}
+
+          {/* Online Classes */}
+          {selectedDayOnlineClasses.map(({ subject, entry }) => (
+            <div key={subject.id} className="rounded-xl p-3 flex items-center gap-3"
+              style={{ background: `${subject.colour}12`, border: `1px solid ${subject.colour}30` }}>
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: `${subject.colour}20` }}>
+                <span className="text-xs font-black" style={{ color: subject.colour }}>🎓</span>
+              </div>
+              <div>
+                <div className="text-[10px] font-black uppercase tracking-widest mb-0.5 text-text-muted">Online Class</div>
+                <div className="font-bold text-white text-sm">{subject.name}</div>
+                <div className="text-xs text-text-muted">{entry.time}</div>
+              </div>
+            </div>
+          ))}
+
+          {/* Homework */}
+          {selectedDayHw.length > 0 && (
+            <div className="space-y-2">
+              <div className="text-[10px] font-black uppercase tracking-widest text-text-muted px-1">Homework due</div>
+              {selectedDayHw.map(hw => {
+                const sub = state.subjects.find(s => s.id === hw.subjectId);
+                return (
+                  <div key={hw.id} className={`flex items-center gap-2.5 p-3 rounded-xl ${hw.done ? 'opacity-50' : ''}`}
+                    style={{ background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.2)' }}>
+                    <div className={`w-4 h-4 rounded-full shrink-0 flex items-center justify-center border-2 ${hw.done ? 'bg-green border-green' : 'border-gold'}`}>
+                      {hw.done && <span className="text-white text-[8px]">✓</span>}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className={`text-sm font-bold ${hw.done ? 'line-through text-text-muted' : 'text-white'}`}>{hw.title}</div>
+                      {sub && <div className="text-[10px] text-text-muted">{sub.name}</div>}
+                    </div>
+                    {hw.urgent && !hw.done && <span className="text-[9px] font-black text-coral px-1.5 py-0.5 rounded" style={{ background: 'rgba(255,107,107,0.12)' }}>URGENT</span>}
+                  </div>
+                );
+              })}
+            </div>
           )}
 
           {/* Render Exams */}
@@ -294,7 +329,6 @@ export default function Calendar() {
       </Modal>
 
       {/* Auxiliary Modals */}
-      <WeeklyScheduleModal isOpen={isWeeklyScheduleOpen} onClose={() => setIsWeeklyScheduleOpen(false)} />
       {isColorPickerOpen && <ColorPicker color={evColor} onChange={setEvColor} onClose={() => setIsColorPickerOpen(false)} />}
 
       <ConfirmModal
