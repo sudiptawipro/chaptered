@@ -311,7 +311,7 @@ export const initialState: AppState = {
   attendanceLogs: [],
 };
 
-function appReducer(state: AppState, action: Action): AppState {
+export function appReducer(state: AppState, action: Action): AppState {
   switch (action.type) {
     case 'SET_INITIAL_STATE': {
       const parsed = action.payload;
