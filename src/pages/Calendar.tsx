@@ -58,11 +58,21 @@ export default function Calendar() {
     h.dueDate && isSameDay(new Date(h.dueDate), selectedDate)
   );
 
-  // Online classes scheduled for selected day
-  const selectedDayName = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][selectedDate.getDay()];
-  const selectedDayOnlineClasses = (state.subjects || [])
-    .filter(s => s.onlineClass && Array.isArray(s.classSchedule) && s.classSchedule.some(e => e.day === selectedDayName))
-    .map(s => ({ subject: s, entry: s.classSchedule!.find(e => e.day === selectedDayName)! }));
+  // Helper: get online classes scheduled for any given day, respecting start/end date range
+  const getDayOnlineClasses = (day: Date) => {
+    const dayName = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][day.getDay()];
+    return (state.subjects || [])
+      .filter(s => {
+        if (!s.onlineClass || !Array.isArray(s.classSchedule)) return false;
+        if (!s.classSchedule.some(e => e.day === dayName)) return false;
+        if (s.scheduleStartDate && day < new Date(s.scheduleStartDate)) return false;
+        if (s.scheduleEndDate && day > new Date(s.scheduleEndDate)) return false;
+        return true;
+      })
+      .map(s => ({ subject: s, entry: s.classSchedule!.find(e => e.day === dayName)! }));
+  };
+
+  const selectedDayOnlineClasses = getDayOnlineClasses(selectedDate);
 
   const handleAddEvent = () => {
     if (!evName.trim()) return;
@@ -121,9 +131,10 @@ export default function Calendar() {
             const isSelected = isSameDay(day, selectedDate);
             const isToday = isSameDay(day, new Date());
             const isCurrentMonth = isSameMonth(day, currentDate);
-            
+
             const evs = getDayEvents(day);
             const exs = getDayExams(day);
+            const onlineClasses = getDayOnlineClasses(day);
 
             return (
               <div 
@@ -145,7 +156,6 @@ export default function Calendar() {
                   {evs.map(ev => {
                     const sub = state.subjects.find(s => s.id === ev.subjectId);
                     const col = ev.color || sub?.colour || '#8A8070';
-                    // Unified pill style for all event types
                     return (
                       <div
                         key={ev.id}
@@ -157,6 +167,16 @@ export default function Calendar() {
                       </div>
                     );
                   })}
+                  {onlineClasses.map(({ subject }) => (
+                    <div
+                      key={`online-${subject.id}`}
+                      className="text-[10px] font-bold px-1.5 py-0.5 rounded-md truncate leading-tight"
+                      style={{ backgroundColor: `${subject.colour}20`, color: subject.colour, borderLeft: `2px solid ${subject.colour}` }}
+                      title={`Online: ${subject.name}`}
+                    >
+                      🎓 {subject.name}
+                    </div>
+                  ))}
                 </div>
               </div>
             );

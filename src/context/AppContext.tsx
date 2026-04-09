@@ -101,6 +101,7 @@ export interface Subject {
   onlineClass?: boolean;
   classSchedule?: ClassScheduleEntry[];  // per-day schedule
   scheduleStartDate?: Date;              // when this schedule started (for pending calc)
+  scheduleEndDate?: Date;               // when this schedule ends (optional)
 }
 
 export interface HomeworkItem {

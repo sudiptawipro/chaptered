@@ -19,11 +19,13 @@ type Tab = 'chapters' | 'exams' | 'homework' | 'doubts' | 'attendance';
 function ChapterRow({
   chapter,
   subjectId,
+  hasOnline,
   onOpen,
   onDelete,
 }: {
   chapter: Chapter;
   subjectId: string;
+  hasOnline: boolean;
   onOpen: () => void;
   onDelete: () => void;
 }) {
@@ -77,19 +79,21 @@ function ChapterRow({
           <span>{chapter.schoolStatus === 'covered' ? 'Done' : 'School'}</span>
         </button>
 
-        {/* Online status */}
-        <button
-          onClick={e => { e.stopPropagation(); setField('onlineStatus', chapter.onlineStatus === 'covered' ? 'not-covered' : 'covered'); }}
-          title="Online tuition coverage"
-          className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold transition-all hover:scale-105 ${chapter.onlineStatus === 'covered' ? 'text-sky' : 'text-text-muted'}`}
-          style={{
-            background: chapter.onlineStatus === 'covered' ? 'rgba(103,232,249,0.15)' : 'rgba(255,255,255,0.05)',
-            border: `1px solid ${chapter.onlineStatus === 'covered' ? 'rgba(103,232,249,0.35)' : 'rgba(255,255,255,0.08)'}`,
-          }}
-        >
-          <Wifi size={9} />
-          <span>{chapter.onlineStatus === 'covered' ? 'Done' : 'Online'}</span>
-        </button>
+        {/* Online status — only if subject has online class */}
+        {hasOnline && (
+          <button
+            onClick={e => { e.stopPropagation(); setField('onlineStatus', chapter.onlineStatus === 'covered' ? 'not-covered' : 'covered'); }}
+            title="Online tuition coverage"
+            className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold transition-all hover:scale-105 ${chapter.onlineStatus === 'covered' ? 'text-sky' : 'text-text-muted'}`}
+            style={{
+              background: chapter.onlineStatus === 'covered' ? 'rgba(103,232,249,0.15)' : 'rgba(255,255,255,0.05)',
+              border: `1px solid ${chapter.onlineStatus === 'covered' ? 'rgba(103,232,249,0.35)' : 'rgba(255,255,255,0.08)'}`,
+            }}
+          >
+            <Wifi size={9} />
+            <span>{chapter.onlineStatus === 'covered' ? 'Done' : 'Online'}</span>
+          </button>
+        )}
 
         {/* Exam status */}
         <button
@@ -247,7 +251,7 @@ export default function SubjectHub() {
     { id: 'exams',       label: 'Exams',       icon: <GraduationCap size={15} />,         count: subjectExams.length },
     { id: 'homework',    label: 'Homework',    icon: <CheckSquare size={15} />,           count: subjectHw.filter(h => !h.done).length },
     { id: 'doubts',      label: 'Doubts',      icon: <MessageCircleQuestion size={15} />, count: subjectDoubts.filter(d => !d.resolved).length },
-    { id: 'attendance',  label: 'Attendance',  icon: <ClipboardCheck size={15} />,        count: undefined },
+    ...(subject.onlineClass ? [{ id: 'attendance' as Tab, label: 'Attendance', icon: <ClipboardCheck size={15} />, count: undefined }] : []),
   ];
 
   return (
@@ -298,10 +302,10 @@ export default function SubjectHub() {
 
       {/* ── Progress cards ── */}
       {totalChapters > 0 && (
-        <div className="grid grid-cols-3 gap-3">
+        <div className={`grid gap-3 ${subject.onlineClass ? 'grid-cols-3' : 'grid-cols-2'}`}>
           {[
             { label: 'School', pct: schoolPct, count: schoolCovered, color: '#8B5CF6', icon: <School size={16} /> },
-            { label: 'Online Tuition', pct: onlinePct, count: onlineCovered, color: 'var(--sky)', icon: <Wifi size={16} /> },
+            ...(subject.onlineClass ? [{ label: 'Online Tuition', pct: onlinePct, count: onlineCovered, color: 'var(--sky)', icon: <Wifi size={16} /> }] : []),
             { label: 'Exam Ready', pct: examPct, count: examReady, color: 'var(--green)', icon: <Brain size={16} /> },
           ].map(card => (
             <div key={card.label} className="rounded-2xl p-4" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
@@ -364,7 +368,7 @@ export default function SubjectHub() {
           {/* Legend */}
           <div className="flex items-center gap-4 text-[10px] text-text-muted font-bold px-1 flex-wrap">
             <span className="flex items-center gap-1"><School size={10} className="text-purple-300" /> School covered</span>
-            <span className="flex items-center gap-1"><Wifi size={10} className="text-sky" /> Online covered</span>
+            {subject.onlineClass && <span className="flex items-center gap-1"><Wifi size={10} className="text-sky" /> Online covered</span>}
             <span className="flex items-center gap-1"><Brain size={10} className="text-green" /> Exam readiness (tap to cycle)</span>
             <span className="flex items-center gap-1"><Flag size={10} className="text-coral" /> Flagged for revision</span>
           </div>
@@ -382,6 +386,7 @@ export default function SubjectHub() {
                   <ChapterRow
                     chapter={ch}
                     subjectId={subject.id}
+                    hasOnline={!!subject.onlineClass}
                     onOpen={() => navigate(`/subjects/${subject.id}/chapter/${ch.id}`)}
                     onDelete={() => showConfirm('Delete Chapter', `Delete "${ch.name}"?`, () =>
                       dispatch({ type: 'DELETE_CHAPTER', payload: { subjectId: subject.id, chapterId: ch.id } })

@@ -36,6 +36,7 @@ export default function Subjects() {
   const [subOnlineClass, setSubOnlineClass] = useState(false);
   const [subSchedule, setSubSchedule] = useState<ClassScheduleEntry[]>([]);
   const [subScheduleStartDate, setSubScheduleStartDate] = useState('');
+  const [subScheduleEndDate, setSubScheduleEndDate] = useState('');
 
   const ALL_DAYS: WeekDay[] = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
@@ -71,6 +72,7 @@ export default function Subjects() {
     setSubOnlineClass(false);
     setSubSchedule([]);
     setSubScheduleStartDate('');
+    setSubScheduleEndDate('');
     setIsSubjectModalOpen(true);
   };
 
@@ -84,6 +86,9 @@ export default function Subjects() {
     setSubScheduleStartDate(
       sub.scheduleStartDate ? new Date(sub.scheduleStartDate).toISOString().split('T')[0] : ''
     );
+    setSubScheduleEndDate(
+      sub.scheduleEndDate ? new Date(sub.scheduleEndDate).toISOString().split('T')[0] : ''
+    );
     setIsSubjectModalOpen(true);
   };
 
@@ -94,8 +99,9 @@ export default function Subjects() {
           onlineClass: true,
           classSchedule: subSchedule,
           scheduleStartDate: subScheduleStartDate ? new Date(subScheduleStartDate) : undefined,
+          scheduleEndDate: subScheduleEndDate ? new Date(subScheduleEndDate) : undefined,
         }
-      : { onlineClass: false, classSchedule: undefined, scheduleStartDate: undefined };
+      : { onlineClass: false, classSchedule: undefined, scheduleStartDate: undefined, scheduleEndDate: undefined };
 
     if (editingSubject) {
       dispatch({
@@ -346,16 +352,29 @@ export default function Subjects() {
                   </div>
                 )}
 
-                {/* Schedule start date */}
-                <div>
-                  <label className="text-xs font-black text-text-muted uppercase tracking-widest mb-2 block">Schedule Start Date</label>
-                  <input
-                    type="date"
-                    value={subScheduleStartDate}
-                    onChange={e => setSubScheduleStartDate(e.target.value)}
-                    className="bg-bg-raised border border-border rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-accent transition-colors"
-                  />
-                  <p className="text-[10px] text-text-muted mt-1">Used to calculate pending classes accurately</p>
+                {/* Schedule dates */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-black text-text-muted uppercase tracking-widest mb-2 block">Schedule Start Date</label>
+                    <input
+                      type="date"
+                      value={subScheduleStartDate}
+                      onChange={e => setSubScheduleStartDate(e.target.value)}
+                      className="w-full bg-bg-raised border border-border rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-accent transition-colors"
+                    />
+                    <p className="text-[10px] text-text-muted mt-1">When this schedule began</p>
+                  </div>
+                  <div>
+                    <label className="text-xs font-black text-text-muted uppercase tracking-widest mb-2 block">Schedule End Date</label>
+                    <input
+                      type="date"
+                      value={subScheduleEndDate}
+                      min={subScheduleStartDate || undefined}
+                      onChange={e => setSubScheduleEndDate(e.target.value)}
+                      className="w-full bg-bg-raised border border-border rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-accent transition-colors"
+                    />
+                    <p className="text-[10px] text-text-muted mt-1">Leave blank if ongoing</p>
+                  </div>
                 </div>
               </div>
             )}
